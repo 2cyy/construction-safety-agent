@@ -312,8 +312,8 @@ main{flex:1;display:flex;overflow:hidden}
     <div class="chat-header">
       <div class="chat-avatar">🤖</div>
       <div>
-        <div class="chat-title">安全智能体 · SafetyGuard Agent <span class="data-source-tag">基于真实数据训练</span></div>
-        <div class="chat-desc">我可基于真实工地检测数据回答安全帽、吸烟、通道、材料等管理问题</div>
+        <div class="chat-title">安全智能体 · SafetyGuard Agent <span class="data-source-tag">Qwen-VL 视觉驱动</span></div>
+        <div class="chat-desc">我可基于千问视觉大模型分析真实工地图片，也支持文字查询</div>
       </div>
     </div>
     <div class="quick-questions" id="quickQuestions">
@@ -324,14 +324,21 @@ main{flex:1;display:flex;overflow:hidden}
       <button class="quick-btn" onclick="askQuick('对比昨天和今天的安全情况')">📈 趋势对比</button>
       <button class="quick-btn" onclick="askQuick('今天整体安全评分多少？')">🏆 综合评分</button>
       <button class="quick-btn" onclick="askQuick('你们用什么数据集训练的？')">📊 数据来源</button>
+      <button class="quick-btn" onclick="triggerUpload()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-color:#667eea;font-weight:700">📸 上传真实工地图AI分析</button>
     </div>
     <div class="chat-messages" id="chatMessages"></div>
     <div class="chat-input-area">
       <div class="chat-input-wrap">
-        <input type="text" id="chatInput" placeholder="输入消息，如：3楼有人没戴安全帽吗？..."
+        <input type="text" id="chatInput" placeholder="输入消息，如：3楼有人没戴安全帽吗？... 或点击下方 📸 按钮上传真实工地图"
           onkeydown="if(event.key==='Enter')sendMessage()">
       </div>
       <button class="send-btn" onclick="sendMessage()">➤</button>
+    </div>
+    <input type="file" id="imageFileInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
+    <div id="backendStatus" style="padding:4px 20px 8px;font-size:10px;color:var(--text-dim);text-align:center">
+      🔌 后端状态：<span id="backendStatusText" style="color:var(--warning)">未检测</span> |
+      分析模型：<span id="backendModel">qwen-vl-max</span> |
+      <span id="apiKeyStatus">请先在 app.py 配置 API Key</span>
     </div>
   </section>
 
@@ -869,6 +876,158 @@ function updateStats(){
 
 function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
 
+// ==================== AI 视觉分析 (Qwen-VL 千问后端) ====================
+const BACKEND_URL = 'http://localhost:8000';
+let latestAnalysisResult = null;
+
+// 触发文件选择
+function triggerUpload(){
+  document.getElementById('imageFileInput').click();
+}
+
+// 处理图片上传 → 发送后端分析
+function handleImageUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  addMessage('user',`📸 上传图片进行AI分析：<strong>${file.name}</strong> (${(file.size/1024).toFixed(0)}KB)`);
+  showTyping();
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const base64 = e.target.result.split(',')[1]; // 去掉 data:image/...;base64, 前缀
+    sendToBackend(base64, file.name);
+  };
+  reader.readAsDataURL(file);
+  event.target.value = ''; // 清空 input 以便重复上传同一文件
+}
+
+// 发送到 Python 后端调用千问分析
+async function sendToBackend(imageBase64, fileName){
+  const statusEl = document.getElementById('backendStatusText');
+  statusEl.textContent = '分析中...';
+  statusEl.style.color = 'var(--warning)';
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/analyze`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        image_base64: imageBase64,
+        model: 'qwen-vl-max'
+      })
+    });
+
+    if(!response.ok){
+      const err = await response.json();
+      throw new Error(err.detail || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    latestAnalysisResult = data;
+    renderAIResult(data, fileName);
+    statusEl.textContent = '已连接 ✓';
+    statusEl.style.color = 'var(--success)';
+
+  } catch(err) {
+    removeTyping();
+    addMessage('agent', `<div>❌ <strong>AI分析失败</strong></div>
+    <div class="response-card danger">
+      <div class="card-title danger">错误详情</div>
+      <div style="font-size:11px">${escapeHtml(err.message)}</div>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text-dim)">
+      💡 请确认：<br>
+      1. Python后端已启动：<code>uvicorn app:app --reload --port 8000</code><br>
+      2. API Key 已正确配置在 app.py 中<br>
+      3. 后端地址：<a href="${BACKEND_URL}/docs" target="_blank" style="color:var(--accent)">${BACKEND_URL}/docs</a>
+    </div>`, true);
+    document.getElementById('backendStatusText').textContent = '连接失败';
+    document.getElementById('backendStatusText').style.color = 'var(--danger)';
+  }
+}
+
+// 渲染千问AI分析结果
+function renderAIResult(data, fileName){
+  removeTyping();
+
+  const score = Math.max(0, 100 - data.no_helmet*5 - data.smoking*10 - data.channel_blocked*15 - data.material_issue*10);
+
+  let html = `<div>📸 <strong>千问 Qwen-VL 视觉分析完成！</strong>（图片：${escapeHtml(fileName)}）</div>`;
+
+  // 综合评分卡
+  html += `<div class="response-card ${score>=80?'success':score>=60?'warning':'danger'}" style="text-align:center">
+    <div style="font-size:40px;font-weight:900;color:${score>=80?'var(--success)':score>=60?'var(--warning)':'var(--danger)'}">${score}<span style="font-size:14px">/100</span></div>
+    <div style="font-size:12px">AI 视觉安全评分</div>
+  </div>`;
+
+  // 详细检测结果
+  html += `<div class="response-card info"><div class="card-title">🔍 Qwen-VL 检测结果</div>`;
+  html += `<div class="card-row"><span class="label">👷 检测人数</span><span class="value">${data.total_people} 人</span></div>`;
+  html += `<div class="card-row"><span class="label">🪖 未戴安全帽</span><span class="value" style="color:${data.no_helmet>0?'var(--danger)':'var(--success)'}">${data.no_helmet} 人 ${data.no_helmet>0?'⚠️':'✅'}</span></div>`;
+  html += `<div class="card-row"><span class="label">🚬 吸烟行为</span><span class="value" style="color:${data.smoking>0?'var(--danger)':'var(--success)'}">${data.smoking} 人 ${data.smoking>0?'🚨':'✅'}</span></div>`;
+  html += `<div class="card-row"><span class="label">🚪 通道堵塞</span><span class="value" style="color:${data.channel_blocked>0?'var(--danger)':'var(--success)'}">${data.channel_blocked?'⚠️ 有堵塞':'✅ 畅通'}</span></div>`;
+  html += `<div class="card-row"><span class="label">📦 材料违规</span><span class="value" style="color:${data.material_issue>0?'var(--warning)':'var(--success)'}">${data.material_issue?'⚠️ 需整改':'✅ 合规'}</span></div>`;
+  html += `</div>`;
+
+  // AI 描述
+  html += `<div class="response-card ${score<80?'warning':''}"><div class="card-title">🤖 AI 检测小结</div>`;
+  html += `<div style="font-size:12px;line-height:1.6">${escapeHtml(data.details)}</div>`;
+  html += `<div style="margin-top:4px;font-size:9px;color:var(--text-dim)">模型：${escapeHtml(data.model_used)} | 时间：${escapeHtml(data.timestamp)}</div>`;
+  html += `</div>`;
+
+  // 操作建议
+  if(data.no_helmet>0 || data.smoking>0 || data.channel_blocked>0 || data.material_issue>0){
+    html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">`;
+    html += `⚠️ 检测到违规，已自动推送到现场安全员。<br>`;
+    if(data.no_helmet>0) html += `💡 建议：立即要求未戴安全帽的 ${data.no_helmet} 人整改<br>`;
+    if(data.smoking>0) html += `💡 建议：立即制止吸烟行为，检查周边是否有易燃材料<br>`;
+    if(data.channel_blocked) html += `💡 建议：立即清理安全通道<br>`;
+    if(data.material_issue) html += `💡 建议：安排人员重新规整材料摆放<br>`;
+    html += `</div>`;
+  }
+
+  addMessage('agent', html, true);
+
+  // 更新左侧统计面板（合并AI结果）
+  if(data.no_helmet > 0){
+    const el = document.getElementById('statHelmet');
+    el.textContent = parseInt(el.textContent) + data.no_helmet;
+    el.classList.add('danger');
+  }
+  if(data.smoking > 0){
+    const el = document.getElementById('statSmoking');
+    el.textContent = parseInt(el.textContent) + data.smoking;
+    el.classList.add('warning');
+  }
+  if(data.channel_blocked > 0){
+    document.getElementById('statPassage').textContent = parseInt(document.getElementById('statPassage').textContent) + data.channel_blocked;
+  }
+
+  // 添加AI分析告警
+  if(data.no_helmet>0) addAlert({time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),type:'no_helmet',zone:'AI视觉分析',worker:'(图片检测)',severity:'warning',desc:`千问检测：${data.no_helmet}人未戴安全帽`});
+  if(data.smoking>0) addAlert({time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),type:'smoking',zone:'AI视觉分析',worker:'(图片检测)',severity:'critical',desc:`千问检测：${data.smoking}人在工地吸烟`});
+}
+
+// 后端健康检查
+async function checkBackendHealth(){
+  try {
+    const resp = await fetch(`${BACKEND_URL}/health`);
+    const data = await resp.json();
+    if(data.status === 'ok'){
+      document.getElementById('backendStatusText').textContent = '已连接 ✓';
+      document.getElementById('backendStatusText').style.color = 'var(--success)';
+      document.getElementById('backendModel').textContent = data.model;
+      document.getElementById('apiKeyStatus').textContent = data.api_configured ? 'API Key 已配置 ✅' : 'API Key 未配置 ❌';
+      document.getElementById('apiKeyStatus').style.color = data.api_configured ? 'var(--success)' : 'var(--danger)';
+    }
+  } catch(e) {
+    document.getElementById('backendStatusText').textContent = '未连接';
+    document.getElementById('backendStatusText').style.color = 'var(--text-dim)';
+    document.getElementById('apiKeyStatus').textContent = '请启动后端: uvicorn app:app --reload --port 8000';
+  }
+}
+
 function init(){
   buildFloorGrid();
   updateStats();
@@ -877,6 +1036,8 @@ function init(){
   refreshDetectionOverlays();
   updateLiveFeedSource();
   setInterval(refreshDetectionOverlays,4000);
+  checkBackendHealth();
+  setInterval(checkBackendHealth,30000); // 每30秒检查后端状态
 
   setTimeout(()=>{
     addMessage('agent',`<div>👋 你好，安全总监！我是<strong>广州腾讯总部大楼施工安全管理 AI 智能体</strong>。</div>
