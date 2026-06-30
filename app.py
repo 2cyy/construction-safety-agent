@@ -26,8 +26,13 @@ app.add_middleware(
 
 # ==================== 配置 ====================
 # 从环境变量读取 API Key（更安全），也可以直接写在这里
-DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "sk-your-api-key-here")
+DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "sk-0cc5e281843e4e9dbc0c9fdff2ef8d55")
 dashscope.api_key = DASHSCOPE_API_KEY
+
+# 禁用代理（公司网络代理通常无法访问阿里云API）
+# 如果你的代理可以访问外网，注释掉下面这行
+os.environ["NO_PROXY"] = os.environ.get("NO_PROXY", "*")
+os.environ["no_proxy"] = os.environ.get("no_proxy", "*")
 
 # 默认模型
 MODEL_NAME = os.getenv("QWEN_MODEL", "qwen-vl-max")
