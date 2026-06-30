@@ -31,74 +31,123 @@ DASHSCOPE_API_KEY = os.getenv("DASHSCOPE_API_KEY", "sk-0cc5e281843e4e9dbc0c9fdff
 dashscope.api_key = DASHSCOPE_API_KEY
 MODEL_NAME = os.getenv("QWEN_MODEL", "qwen-vl-max")
 
-# ==================== YOLOv8 引擎 ====================
-# 延迟加载，避免启动时吃内存
+# ==================== YOLOv8 引擎 (可选增强) ====================
 yolo_model = None
+yolo_available = False
 
-def get_yolo_model():
-    """懒加载YOLO模型"""
-    global yolo_model
-    if yolo_model is None:
+def init_yolo():
+    """尝试加载YOLO模型，如果不可用则降级"""
+    global yolo_model, yolo_available
+    try:
         from ultralytics import YOLO
         print("[YOLO] 加载 YOLOv8n 模型...")
-        yolo_model = YOLO("yolov8n.pt")  # nano版本，快速轻量
+        yolo_model = YOLO("yolov8n.pt")
+        yolo_available = True
         print("[YOLO] 模型加载完成")
-    return yolo_model
+    except ImportError:
+        print("[YOLO] ultralytics 未安装，使用 OpenCV HOG 检测器作为后备")
+        yolo_available = False
+        try:
+            import cv2
+            # 使用OpenCV内置HOG行人检测器
+            hog = cv2.HOGDescriptor()
+            hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+            yolo_model = hog
+            print("[HOG] OpenCV HOG 行人检测器就绪")
+        except ImportError:
+            print("[HOG] OpenCV 未安装，使用基础图像分析")
+            yolo_model = None
 
-
-# 安全帽颜色范围 (HSV) — 用于对检测到的人头区域做快速分类
+# 安全帽颜色范围 (HSV)
 HELMET_COLORS = {
-    "yellow":  {"lower": (15, 40, 40),  "upper": (35, 255, 255)},  # 黄色
-    "white":   {"lower": (0, 0, 180),   "upper": (180, 30, 255)},  # 白色
-    "red":     {"lower": (0, 50, 50),   "upper": (10, 255, 255)},  # 红色
-    "blue":    {"lower": (100, 50, 50), "upper": (130, 255, 255)},  # 蓝色
+    "yellow":  {"lower": (15, 40, 40),  "upper": (35, 255, 255)},
+    "white":   {"lower": (0, 0, 180),   "upper": (180, 30, 255)},
+    "red":     {"lower": (0, 50, 50),   "upper": (10, 255, 255)},
+    "blue":    {"lower": (100, 50, 50), "upper": (130, 255, 255)},
 }
 
 
-def detect_persons(image: Image.Image) -> dict:
+def detect_persons(image) -> dict:
     """
-    YOLOv8引擎：检测图片中所有人，并判断每人是否佩戴安全帽
-    返回：人员数量、每个人的bbox、是否戴安全帽
+    人员检测引擎（支持多级降级）：
+    1. YOLOv8n (最优，需 ultralytics)
+    2. OpenCV HOG (中等，需 opencv-python)
+    3. 基础图像分析 (兜底，纯 numpy)
     """
-    model = get_yolo_model()
+    if yolo_model is None:
+        init_yolo()
+
     img_array = np.array(image)
-
-    # YOLO检测（只取person类，COCO class 0）
-    results = model(img_array, classes=[0], conf=0.35, verbose=False)
-
     persons = []
-    if results and len(results) > 0:
-        boxes = results[0].boxes
-        if boxes is not None:
-            for i, box in enumerate(boxes.xyxy.cpu().numpy()):
-                x1, y1, x2, y2 = box[:4].astype(int)
-                conf = float(boxes.conf[i]) if boxes.conf is not None else 1.0
 
-                # 裁剪头部区域（人体上1/4）
-                head_y2 = y1 + int((y2 - y1) * 0.35)
+    try:
+        if yolo_available and hasattr(yolo_model, 'predict'):
+            # 方案1: YOLOv8
+            results = yolo_model(img_array, classes=[0], conf=0.35, verbose=False)
+            if results and len(results) > 0 and results[0].boxes is not None:
+                boxes = results[0].boxes
+                for i in range(len(boxes.xyxy)):
+                    x1, y1, x2, y2 = boxes.xyxy[i].cpu().numpy()[:4].astype(int)
+                    conf = float(boxes.conf[i])
+                    head_y2 = y1 + int((y2 - y1) * 0.35)
+                    head_region = img_array[max(0, y1-5):head_y2, x1:x2]
+                    has_helmet = check_helmet_color(head_region)
+                    persons.append({"id": len(persons)+1, "bbox": [int(x1), int(y1), int(x2), int(y2)], "confidence": round(conf, 2), "has_helmet": has_helmet, "head_region_valid": head_region.size > 100, "detector": "YOLOv8n"})
+
+        elif yolo_model is not None:
+            # 方案2: OpenCV HOG
+            import cv2
+            gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+            boxes, weights = yolo_model.detectMultiScale(gray, winStride=(8,8), padding=(8,8), scale=1.05)
+            boxes = boxes if boxes is not None else []
+            for (x, y, w, h) in boxes:
+                x1, y1, x2, y2 = x, y, x+w, y+h
+                conf = 0.5  # HOG不返回置信度
+                head_y2 = y1 + int(h * 0.35)
                 head_region = img_array[max(0, y1-5):head_y2, x1:x2]
-
-                # 简单颜色检测：头部区域是否有安全帽颜色
                 has_helmet = check_helmet_color(head_region)
+                persons.append({"id": len(persons)+1, "bbox": [x1, y1, x2, y2], "confidence": round(conf, 2), "has_helmet": has_helmet, "head_region_valid": head_region.size > 100, "detector": "OpenCV-HOG"})
 
-                persons.append({
-                    "id": i + 1,
-                    "bbox": [int(x1), int(y1), int(x2), int(y2)],
-                    "confidence": round(conf, 2),
-                    "has_helmet": has_helmet,
-                    "head_region_valid": head_region.size > 100
-                })
+        else:
+            # 方案3: 基础图像网格分析 (纯numpy兜底)
+            h, w = img_array.shape[:2]
+            # 将图片分成网格，寻找可能的人员区域（基于颜色变化）
+            grid = 6
+            for row in range(grid):
+                for col in range(grid):
+                    x1 = int(w * col / grid)
+                    y1 = int(h * row / grid)
+                    x2 = int(w * (col+1) / grid)
+                    y2 = int(h * (row+1) / grid)
+                    region = img_array[y1:y2, x1:x2]
+                    # 简单启发式：颜色方差大的区域可能有人
+                    if region.size > 0 and np.std(region) > 30:
+                        head_y2 = y1 + int((y2-y1)*0.35)
+                        head_region = img_array[max(0,y1-3):head_y2, x1:x2]
+                        has_helmet = check_helmet_color(head_region)
+                        persons.append({"id": len(persons)+1, "bbox": [x1, y1, x2, y2], "confidence": 0.3, "has_helmet": has_helmet, "head_region_valid": head_region.size > 100, "detector": "GridAnalysis"})
 
-    no_helmet_count = sum(1 for p in persons if not p["has_helmet"])
+        no_helmet_count = sum(1 for p in persons if not p["has_helmet"])
 
-    return {
-        "engine": "YOLOv8n",
-        "total_persons": len(persons),
-        "no_helmet_detected": no_helmet_count,
-        "persons": persons,
-        "image_width": image.width,
-        "image_height": image.height
-    }
+        return {
+            "engine": persons[0]["detector"] if persons else "none",
+            "total_persons": len(persons),
+            "no_helmet_detected": no_helmet_count,
+            "persons": persons,
+            "image_width": image.width,
+            "image_height": image.height
+        }
+
+    except Exception as e:
+        return {
+            "engine": "error",
+            "total_persons": 0,
+            "no_helmet_detected": 0,
+            "persons": [],
+            "image_width": image.width,
+            "image_height": image.height,
+            "error": f"检测引擎异常: {str(e)}"
+        }
 
 
 def check_helmet_color(head_region: np.ndarray) -> bool:
