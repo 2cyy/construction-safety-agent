@@ -338,7 +338,7 @@ main{flex:1;display:flex;overflow:hidden}
     <div id="backendStatus" style="padding:4px 20px 8px;font-size:10px;color:var(--text-dim);text-align:center">
       🔌 后端状态：<span id="backendStatusText" style="color:var(--warning)">未检测</span> |
       分析模型：<span id="backendModel">qwen-vl-max</span> |
-      <span id="apiKeyStatus">请先在 app.py 配置 API Key</span>
+      <span id="apiKeyStatus">🎯YOLOv8n + 🧠Qwen-VL 双引擎就绪</span>
     </div>
   </section>
 
@@ -951,62 +951,81 @@ async function sendToBackend(imageBase64, fileName){
 function renderAIResult(data, fileName){
   removeTyping();
 
-  const score = Math.max(0, 100 - data.no_helmet*5 - data.smoking*10 - data.channel_blocked*15 - data.material_issue*10);
+  // 兼容新旧响应格式
+  const score = data.overall_score || Math.max(0, 100 - (data.yolo_no_helmet||data.no_helmet||0)*5 - (data.qwen_smoking||data.smoking||0)*15 - (data.qwen_channel_blocked||data.channel_blocked||0)*15 - (data.qwen_material_issue||data.material_issue||0)*10);
+  const engines = data.engines_used || ['Qwen-VL'];
+  const totalPeople = data.yolo_total_persons || data.total_people || 0;
+  const noHelmet = data.yolo_no_helmet || data.no_helmet || 0;
+  const smoking = data.qwen_smoking || data.smoking || 0;
+  const blocked = data.qwen_channel_blocked || data.channel_blocked || 0;
+  const material = data.qwen_material_issue || data.material_issue || 0;
+  const details = data.qwen_details || data.details || '';
+  const persons = data.persons || [];
 
-  let html = `<div>📸 <strong>千问 Qwen-VL 视觉分析完成！</strong>（图片：${escapeHtml(fileName)}）</div>`;
+  let html = `<div>📸 <strong>双引擎AI分析完成！</strong>（${escapeHtml(fileName)}）</div>`;
+
+  // 引擎标识
+  html += `<div style="margin:4px 0;display:flex;gap:6px">`;
+  engines.forEach(e => {
+    const isYolo = e.includes('YOLO');
+    html += `<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:${isYolo?'#10b98122':'#667eea22'};color:${isYolo?'var(--success)':'#667eea'}">${isYolo?'🎯':'🧠'} ${e}</span>`;
+  });
+  html += `</div>`;
 
   // 综合评分卡
   html += `<div class="response-card ${score>=80?'success':score>=60?'warning':'danger'}" style="text-align:center">
     <div style="font-size:40px;font-weight:900;color:${score>=80?'var(--success)':score>=60?'var(--warning)':'var(--danger)'}">${score}<span style="font-size:14px">/100</span></div>
-    <div style="font-size:12px">AI 视觉安全评分</div>
+    <div style="font-size:12px">双引擎综合安全评分</div>
   </div>`;
 
-  // 详细检测结果
-  html += `<div class="response-card info"><div class="card-title">🔍 Qwen-VL 检测结果</div>`;
-  html += `<div class="card-row"><span class="label">👷 检测人数</span><span class="value">${data.total_people} 人</span></div>`;
-  html += `<div class="card-row"><span class="label">🪖 未戴安全帽</span><span class="value" style="color:${data.no_helmet>0?'var(--danger)':'var(--success)'}">${data.no_helmet} 人 ${data.no_helmet>0?'⚠️':'✅'}</span></div>`;
-  html += `<div class="card-row"><span class="label">🚬 吸烟行为</span><span class="value" style="color:${data.smoking>0?'var(--danger)':'var(--success)'}">${data.smoking} 人 ${data.smoking>0?'🚨':'✅'}</span></div>`;
-  html += `<div class="card-row"><span class="label">🚪 通道堵塞</span><span class="value" style="color:${data.channel_blocked>0?'var(--danger)':'var(--success)'}">${data.channel_blocked?'⚠️ 有堵塞':'✅ 畅通'}</span></div>`;
-  html += `<div class="card-row"><span class="label">📦 材料违规</span><span class="value" style="color:${data.material_issue>0?'var(--warning)':'var(--success)'}">${data.material_issue?'⚠️ 需整改':'✅ 合规'}</span></div>`;
+  // YOLO 引擎结果卡片
+  html += `<div class="response-card success"><div class="card-title success">🎯 YOLOv8n 精确检测引擎</div>`;
+  html += `<div class="card-row"><span class="label">👷 检测人数（精确计数）</span><span class="value">${totalPeople} 人</span></div>`;
+  html += `<div class="card-row"><span class="label">🪖 安全帽颜色检测</span><span class="value" style="color:${noHelmet>0?'var(--danger)':'var(--success)'}">${noHelmet}人未戴 | ${totalPeople-noHelmet}人合规</span></div>`;
+  html += `<div class="card-row"><span class="label">📐 检测框坐标</span><span class="value">${persons.length} 个人员bbox</span></div>`;
+  // 每人状态条
+  if(persons.length > 0){
+    html += `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px">`;
+    persons.forEach(p => {
+      html += `<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:${p.has_helmet?'#10b98122':'#ef444422'};color:${p.has_helmet?'var(--success)':'var(--danger)'}" title="conf:${p.confidence}">👤${p.id} ${p.has_helmet?'✓':'✗'}</span>`;
+    });
+    html += `</div>`;
+  }
   html += `</div>`;
 
-  // AI 描述
-  html += `<div class="response-card ${score<80?'warning':''}"><div class="card-title">🤖 AI 检测小结</div>`;
-  html += `<div style="font-size:12px;line-height:1.6">${escapeHtml(data.details)}</div>`;
-  html += `<div style="margin-top:4px;font-size:9px;color:var(--text-dim)">模型：${escapeHtml(data.model_used)} | 时间：${escapeHtml(data.timestamp)}</div>`;
+  // 千问 引擎结果卡片
+  html += `<div class="response-card info"><div class="card-title">🧠 Qwen-VL 语义理解引擎</div>`;
+  html += `<div class="card-row"><span class="label">🚬 吸烟行为</span><span class="value" style="color:${smoking>0?'var(--danger)':'var(--success)'}">${smoking>0?'⚠️ 检测到吸烟':'✅ 未发现'}</span></div>`;
+  html += `<div class="card-row"><span class="label">🚪 通道堵塞</span><span class="value" style="color:${blocked>0?'var(--danger)':'var(--success)'}">${blocked>0?'⚠️ 有堵塞':'✅ 畅通'}</span></div>`;
+  html += `<div class="card-row"><span class="label">📦 材料违规</span><span class="value" style="color:${material>0?'var(--warning)':'var(--success)'}">${material>0?'⚠️ 需整改':'✅ 合规'}</span></div>`;
+  html += `<div style="margin-top:6px;font-size:12px;line-height:1.5;color:var(--text)">💬 ${escapeHtml(details)}</div>`;
   html += `</div>`;
 
   // 操作建议
-  if(data.no_helmet>0 || data.smoking>0 || data.channel_blocked>0 || data.material_issue>0){
-    html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">`;
-    html += `⚠️ 检测到违规，已自动推送到现场安全员。<br>`;
-    if(data.no_helmet>0) html += `💡 建议：立即要求未戴安全帽的 ${data.no_helmet} 人整改<br>`;
-    if(data.smoking>0) html += `💡 建议：立即制止吸烟行为，检查周边是否有易燃材料<br>`;
-    if(data.channel_blocked) html += `💡 建议：立即清理安全通道<br>`;
-    if(data.material_issue) html += `💡 建议：安排人员重新规整材料摆放<br>`;
-    html += `</div>`;
+  if(noHelmet>0 || smoking>0 || blocked>0 || material>0){
+    html += `<div class="response-card warning"><div class="card-title warning">⚠️ 检测到违规，请立即处理</div>`;
+    if(noHelmet>0) html += `<div style="font-size:11px;color:var(--danger)">🪖 YOLO检测到 <strong>${noHelmet}</strong> 人未正确佩戴安全帽</div>`;
+    if(smoking>0) html += `<div style="font-size:11px;color:var(--danger)">🚬 千问检测到吸烟行为</div>`;
+    if(blocked>0) html += `<div style="font-size:11px;color:var(--warning)">🚪 千问检测到安全通道堵塞</div>`;
+    if(material>0) html += `<div style="font-size:11px;color:var(--warning)">📦 千问检测到材料摆放违规</div>`;
+    html += `<div style="margin-top:4px;font-size:9px;color:var(--text-dim)">已自动推送告警至现场安全员</div></div>`;
   }
 
   addMessage('agent', html, true);
 
-  // 更新左侧统计面板（合并AI结果）
-  if(data.no_helmet > 0){
+  // 更新统计面板
+  if(noHelmet > 0){
     const el = document.getElementById('statHelmet');
-    el.textContent = parseInt(el.textContent) + data.no_helmet;
-    el.classList.add('danger');
+    el.textContent = parseInt(el.textContent) + noHelmet;
   }
-  if(data.smoking > 0){
+  if(smoking > 0){
     const el = document.getElementById('statSmoking');
-    el.textContent = parseInt(el.textContent) + data.smoking;
-    el.classList.add('warning');
-  }
-  if(data.channel_blocked > 0){
-    document.getElementById('statPassage').textContent = parseInt(document.getElementById('statPassage').textContent) + data.channel_blocked;
+    el.textContent = parseInt(el.textContent) + smoking;
   }
 
-  // 添加AI分析告警
-  if(data.no_helmet>0) addAlert({time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),type:'no_helmet',zone:'AI视觉分析',worker:'(图片检测)',severity:'warning',desc:`千问检测：${data.no_helmet}人未戴安全帽`});
-  if(data.smoking>0) addAlert({time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),type:'smoking',zone:'AI视觉分析',worker:'(图片检测)',severity:'critical',desc:`千问检测：${data.smoking}人在工地吸烟`});
+  // AI告警推送
+  if(noHelmet>0) addAlert({time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),type:'no_helmet',zone:'AI视觉分析',worker:'(YOLO检测)',severity:'warning',desc:`YOLO精确检测：${noHelmet}人未戴安全帽`});
+  if(smoking>0) addAlert({time:new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}),type:'smoking',zone:'AI视觉分析',worker:'(千问检测)',severity:'critical',desc:`千问语义分析：检测到吸烟行为`});
 }
 
 // 后端健康检查
