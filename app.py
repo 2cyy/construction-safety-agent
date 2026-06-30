@@ -172,8 +172,8 @@ def check_helmet_color(head_region: np.ndarray) -> bool:
     except Exception:
         pass
 
-    # 如果颜色检测失败，至少头部区域存在就假设可能有帽子
-    return head_region.size > 500
+    # 颜色检测失败 → 标记为"不确定"，默认认为未戴安全帽（安全优先原则）
+    return False
 
 
 def cv2_in_range(arr: np.ndarray, lower: np.ndarray, upper: np.ndarray) -> np.ndarray:
@@ -182,27 +182,32 @@ def cv2_in_range(arr: np.ndarray, lower: np.ndarray, upper: np.ndarray) -> np.nd
 
 
 # ==================== Qwen-VL 语义引擎 ====================
-QWEN_SYSTEM_PROMPT = """你是一个工地安全检查AI，正在监控广州腾讯总部大楼的硬装修工程。
-你的任务是对整张图片做场景级语义理解，不需要逐人检测（人员精确检测已由YOLO引擎完成）。
+QWEN_SYSTEM_PROMPT = """你是一个极度严格的工地安全检查AI，正在监控广州腾讯总部大楼的硬装修工程。
 
-请关注以下YOLO无法处理的高层语义问题：
-1. 吸烟行为 — 是否有香烟、烟头、烟雾，或手在嘴边的吸烟姿态
-2. 安全通道堵塞 — 通道/走廊/楼梯口是否被材料、工具阻挡
-3. 材料摆放违规 — 材料是否散落、是否在指定区域外、是否阻挡通行
-4. 整体安全评估 — 工地整体是否整洁有序，有哪些明显隐患
+你的检测标准：安全第一，零容忍！哪怕只有一点点疑似违规，也要标记出来。
 
-只返回JSON，不要有任何解释文字。"""
+你需要同时检查以下所有维度：
+1. 安全帽 — 逐个人看头部！没戴安全帽的、安全帽拿在手里的、戴鸭舌帽的，都算违规
+2. 吸烟 — 是否有香烟、烟头、烟雾，手在嘴边的吸烟姿态
+3. 安全通道堵塞 — 通道/走廊/楼梯口是否被材料、工具阻挡
+4. 材料摆放违规 — 材料是否散落在非指定区域、是否阻挡通行
+5. 整体安全评估
 
-QWEN_USER_PROMPT = """请分析这张工地图片的场景级安全问题。
+重要：只返回JSON，不要有任何解释文字。"""
 
-YOLO引擎已完成了人员定位。请你关注：
-- 有没有人吸烟？（看手部附近是否有烟头/烟雾）
-- 安全通道有没有被堵？（看通道/门口是否有障碍物）
-- 材料有没有乱放？（看材料是否散落在非堆放区）
-- 整体安全管理有没有明显漏洞？
+QWEN_USER_PROMPT = """请极其仔细地分析这张工地图片。按照以下步骤逐一检查（在心里完成即可，只输出最终JSON）：
 
-严格按照以下JSON格式返回（数值必须是整数）：
-{"smoking": 0或1, "channel_blocked": 0或1, "material_issue": 0或1, "details": "用中文一句话描述主要安全风险，没有风险就说现场安全状况良好"}"""
+第1步：先数清楚图中一共有多少个人（包括远处和部分可见的人）
+第2步：逐个人检查头部——这个人头上有没有戴安全帽？
+  - 安全帽 = 硬质的、有明显帽檐的黄色/白色/红色/蓝色头盔
+  - 鸭舌帽、布帽、头巾、光头、头发可见 ≠ 安全帽
+  - 看不清头部、头部被遮挡 → 严格原则：标记为疑似未戴安全帽
+第3步：检查有没有人在吸烟
+第4步：检查安全通道有没有被堵
+第5步：检查材料有没有乱放
+
+返回JSON格式（数值必须是整数）：
+{"total_people": 图中总人数, "no_helmet": 未戴/疑似未戴安全帽人数, "smoking": 0或1, "channel_blocked": 0或1, "material_issue": 0或1, "details": "具体描述所有违规位置和类型"}"""
 
 
 def qwen_scene_analysis(image_base64: str) -> dict:
@@ -272,11 +277,15 @@ class DetectionResult(BaseModel):
     yolo_no_helmet: int = 0
     persons: List[dict] = []
     # 千问引擎结果
+    qwen_total_people: int = 0
+    qwen_no_helmet: int = 0
     qwen_smoking: int = 0
     qwen_channel_blocked: int = 0
     qwen_material_issue: int = 0
     qwen_details: str = ""
-    # 综合
+    # 综合（双引擎融合，取更严格的值）
+    total_people: int = 0
+    no_helmet: int = 0
     overall_score: int = 0
     engines_used: List[str] = []
     # 调试
@@ -348,28 +357,41 @@ def analyze_image_endpoint(request: ImageAnalysisRequest):
     except Exception as e:
         errors.append(f"千问引擎: {str(e)}")
 
-    # ===== 综合评分 =====
-    yolo_violations = yolo_result.get("no_helmet_detected", 0)
+    # ===== 双引擎数据融合 =====
+    yolo_persons = yolo_result.get("total_persons", 0)
+    yolo_no_helmet = yolo_result.get("no_helmet_detected", 0)
+
+    qwen_people = qwen_result.get("total_people", 0)
+    qwen_no_helmet = qwen_result.get("no_helmet", 0)
     qwen_smoking = qwen_result.get("smoking", 0)
     qwen_blocked = qwen_result.get("channel_blocked", 0)
     qwen_material = qwen_result.get("material_issue", 0)
 
+    # 融合策略：取两个引擎中更严格的值
+    total_people = max(yolo_persons, qwen_people)
+    no_helmet = max(yolo_no_helmet, qwen_no_helmet)
+
+    # 综合评分
     score = max(0, 100
-                - yolo_violations * 5
-                - qwen_smoking * 15
+                - no_helmet * 8
+                - qwen_smoking * 20
                 - qwen_blocked * 15
                 - qwen_material * 10)
 
     return DetectionResult(
         success=len(engines_used) > 0,
         timestamp=datetime.now().isoformat(),
-        yolo_total_persons=yolo_result.get("total_persons", 0),
-        yolo_no_helmet=yolo_result.get("no_helmet_detected", 0),
+        yolo_total_persons=yolo_persons,
+        yolo_no_helmet=yolo_no_helmet,
         persons=yolo_result.get("persons", []),
+        qwen_total_people=qwen_people,
+        qwen_no_helmet=qwen_no_helmet,
         qwen_smoking=qwen_smoking,
         qwen_channel_blocked=qwen_blocked,
         qwen_material_issue=qwen_material,
         qwen_details=qwen_result.get("details", ""),
+        total_people=total_people,
+        no_helmet=no_helmet,
         overall_score=score,
         engines_used=engines_used,
         qwen_raw=qwen_result.get("raw_response", ""),

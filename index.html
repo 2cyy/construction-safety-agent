@@ -877,7 +877,7 @@ function updateStats(){
 function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
 
 // ==================== AI 视觉分析 (Qwen-VL 千问后端) ====================
-const BACKEND_URL = 'http://localhost:8002';  // 双引擎后端端口
+const BACKEND_URL = 'http://localhost:8003';  // 双引擎后端端口
 let latestAnalysisResult = null;
 
 // 触发文件选择
@@ -978,11 +978,20 @@ function renderAIResult(data, fileName){
     <div style="font-size:12px">双引擎综合安全评分</div>
   </div>`;
 
+  // 融合结果卡片
+  const qwenNoHelmet = data.qwen_no_helmet || 0;
+  const yoloNoHelmet = data.yolo_no_helmet || 0;
+  const mergedNoHelmet = data.no_helmet || Math.max(yoloNoHelmet, qwenNoHelmet);
+
+  html += `<div class="response-card ${mergedNoHelmet>0?'danger':'success'}"><div class="card-title ${mergedNoHelmet>0?'danger':'success'}">🪖 安全帽检测（双引擎交叉验证）</div>`;
+  html += `<div class="card-row"><span class="label">🎯 YOLOv8n 检测</span><span class="value">${totalPeople}人 | 未戴: <span style="color:${yoloNoHelmet>0?'var(--danger)':'var(--success)'}">${yoloNoHelmet}</span></span></div>`;
+  html += `<div class="card-row"><span class="label">🧠 Qwen-VL 检测</span><span class="value">${data.qwen_total_people||totalPeople}人 | 未戴: <span style="color:${qwenNoHelmet>0?'var(--danger)':'var(--success)'}">${qwenNoHelmet}</span></span></div>`;
+  html += `<div class="card-row"><span class="label">📊 融合结果（取严格值）</span><span class="value" style="font-size:16px;color:${mergedNoHelmet>0?'var(--danger)':'var(--success)'}">${mergedNoHelmet}人未戴安全帽 ${mergedNoHelmet>0?'⚠️':'✅'}</span></div>`;
+  html += `</div>`;
+
   // YOLO 引擎结果卡片
-  html += `<div class="response-card success"><div class="card-title success">🎯 YOLOv8n 精确检测引擎</div>`;
-  html += `<div class="card-row"><span class="label">👷 检测人数（精确计数）</span><span class="value">${totalPeople} 人</span></div>`;
-  html += `<div class="card-row"><span class="label">🪖 安全帽颜色检测</span><span class="value" style="color:${noHelmet>0?'var(--danger)':'var(--success)'}">${noHelmet}人未戴 | ${totalPeople-noHelmet}人合规</span></div>`;
-  html += `<div class="card-row"><span class="label">📐 检测框坐标</span><span class="value">${persons.length} 个人员bbox</span></div>`;
+  html += `<div class="response-card success"><div class="card-title success">🎯 YOLOv8n 精确定位引擎</div>`;
+  html += `<div class="card-row"><span class="label">👷 检测人数</span><span class="value">${totalPeople} 人</span></div>`;
   // 每人状态条
   if(persons.length > 0){
     html += `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px">`;
