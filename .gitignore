@@ -1,2 +1,6 @@
 helmet-detection/
 hardhat_model.pt
+__pycache__/
+site.tar.gz
+wheels/
+yolov8n.pt
