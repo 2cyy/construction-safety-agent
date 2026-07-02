@@ -1344,7 +1344,7 @@ function renderAIResult(data, fileName, imageBase64){
   if(persons.length > 0){
     html += `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px">`;
     persons.forEach(p => {
-      html += `<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:${p.has_helmet?'#10b98122':'#ef444422'};color:${p.has_helmet?'var(--success)':'var(--danger)'}" title="conf:${p.confidence}">👤${p.id} ${p.has_helmet?'✓':'✗'}</span>`;
+      html += `<span style="font-size:9px;padding:2px 6px;border-radius:8px;background:#667eea22;color:#667eea" title="conf:${p.confidence}">👤${p.id}</span>`;
     });
     html += `</div>`;
   }
