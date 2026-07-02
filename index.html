@@ -580,44 +580,10 @@ function refreshDetectionOverlays(){
   const overlay1 = document.getElementById('liveFeed1Overlay');
   const overlay2 = document.getElementById('liveFeed2Overlay');
 
-  // Simulated detection boxes (演示用固定框，非真实识别)
-  overlay1.innerHTML += `<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:#000000aa;color:var(--warning);font-size:9px;padding:2px 8px;border-radius:3px">⚠ 模拟检测框，仅用于演示</div>`;
-  const boxes1 = [
-    {x:12,y:18,w:14,h:28,label:'安全帽(模拟)',cls:'ok'},
-    {x:30,y:22,w:13,h:26,label:'安全帽(模拟)',cls:'ok'},
-    {x:48,y:15,w:12,h:24,label:'未戴安全帽(模拟)',cls:'bad'},
-    {x:65,y:20,w:13,h:27,label:'安全帽(模拟)',cls:'ok'},
-    {x:78,y:25,w:14,h:30,label:'疑似吸烟(模拟)',cls:'bad'},
-    {x:8,y:55,w:12,h:22,label:'安全帽(模拟)',cls:'ok'},
-    {x:40,y:60,w:13,h:25,label:'安全帽(模拟)',cls:'ok'},
-    {x:70,y:58,w:14,h:28,label:'未戴安全帽(模拟)',cls:'bad'},
-  ];
+  // 模拟画面：不画假检测框，仅展示工地场景
+  overlay1.innerHTML = `<div style="position:absolute;top:4px;left:50%;transform:translateX(-50%);background:#000000cc;color:var(--text-dim);font-size:10px;padding:3px 10px;border-radius:4px">📹 模拟工地画面 — 检测框需接真实YOLO后端</div>`;
 
-  overlay1.innerHTML = boxes1.map((b,i)=>{
-    const delay = i*0.2;
-    return `<div class="detection-box ${b.cls==='bad'?'violation':''}" style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%;animation-delay:${delay}s">
-      <div class="detection-box-label ${b.cls==='bad'?'bad':'ok'}">${b.label}</div>
-    </div>`;
-  }).join('');
-
-  // Blocked passage indicator on right side
-  overlay1.innerHTML += `<div class="blocked-overlay">⚠ 通道堵塞 (42%)</div>`;
-
-  // Simulated material zone overlays on live feed 2
-  overlay2.innerHTML = `
-    <div style="position:absolute;left:3%;top:8%;width:42%;height:38%;border:2px dashed #10b981;border-radius:4px">
-      <div class="detection-box-label ok">钢筋区 ✅ 92%</div>
-    </div>
-    <div style="position:absolute;left:50%;top:8%;width:47%;height:38%;border:2px dashed #10b981;border-radius:4px">
-      <div class="detection-box-label ok">水泥区 ✅ 95%</div>
-    </div>
-    <div style="position:absolute;left:3%;top:52%;width:42%;height:38%;border:2px dashed #f59e0b;border-radius:4px">
-      <div class="detection-box-label bad">管道区 ⚠️ 68%</div>
-    </div>
-    <div style="position:absolute;left:50%;top:52%;width:47%;height:38%;border:2px dashed #f59e0b;border-radius:4px">
-      <div class="detection-box-label bad">脚手架区 ⚠️ 73%</div>
-    </div>
-  `;
+  overlay2.innerHTML = `<div style="position:absolute;top:4px;left:50%;transform:translateX(-50%);background:#000000cc;color:var(--text-dim);font-size:10px;padding:3px 10px;border-radius:4px">📦 模拟材料区画面 — 合规检测需接真实后端</div>`;
 }
 
 // ==================== SIMULATED DATA (calibrated to real datasets) ====================
