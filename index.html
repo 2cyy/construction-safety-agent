@@ -272,6 +272,46 @@ main{flex:1;display:flex;overflow:hidden}
 <main>
   <!-- LEFT SIDEBAR -->
   <aside class="left-sidebar">
+    <div class="section-title">🏗️ Agent 能力模块</div>
+
+    <!-- Module 1: AI Perception -->
+    <div style="background:var(--bg-card);border:1px solid var(--accent);border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
+      <div style="color:var(--accent);font-weight:700;margin-bottom:3px">🎯 AI 感知层</div>
+      <span style="color:var(--success)">✓</span> YOLO 人员检测<br>
+      <span style="color:var(--success)">✓</span> 安全帽分类器<br>
+      <span style="color:var(--success)">✓</span> 手部姿态估计<br>
+      <span style="color:var(--success)">✓</span> SAM 区域分割<br>
+      <span style="color:var(--success)">✓</span> Qwen-VL 场景理解
+    </div>
+
+    <!-- Module 2: Event + Policy -->
+    <div style="background:var(--bg-card);border:1px solid var(--warning);border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
+      <div style="color:var(--warning);font-weight:700;margin-bottom:3px">📋 事件 + 策略层</div>
+      Event → {type, worker, zone, risk}<br>
+      <span style="color:var(--success)">✓</span> Helmet Policy<br>
+      <span style="color:var(--success)">✓</span> Smoking Policy<br>
+      <span style="color:var(--success)">✓</span> Passage Policy<br>
+      <span style="color:var(--success)">✓</span> Material Policy
+    </div>
+
+    <!-- Module 3: Risk Assessment -->
+    <div style="background:var(--bg-card);border:1px solid #f97316;border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
+      <div style="color:#f97316;font-weight:700;margin-bottom:3px">📊 风险评估层</div>
+      低 · 中 · 高 · 严重<br>
+      Zone 加权评分<br>
+      重复违规自动升级
+    </div>
+
+    <!-- Module 4: Agent Execution -->
+    <div style="background:var(--bg-card);border:1px solid var(--danger);border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
+      <div style="color:var(--danger);font-weight:700;margin-bottom:3px">⚡ Agent 执行层</div>
+      <span style="color:var(--success)">✓</span> 自动告警推送<br>
+      <span style="color:var(--success)">✓</span> 整改工单生成<br>
+      <span style="color:var(--success)">✓</span> 人工复核队列<br>
+      <span style="color:var(--success)">✓</span> 每日安全日报<br>
+      <span style="color:var(--text-dim)">○</span> 整改闭环追踪(规划)
+    </div>
+
     <div class="section-title">📊 今日概览（演示数据）</div>
     <div class="stat-card active" onclick="askQuick('今天整体安全情况怎么样？')">
       <div class="stat-row"><span class="stat-label">🪖 安全帽违规</span><span class="stat-value danger" id="statHelmet">12</span></div>
@@ -290,57 +330,11 @@ main{flex:1;display:flex;overflow:hidden}
       <div class="stat-sub">4/6 区域达标 · 待检查</div>
     </div>
 
-    <div class="section-title">⚙️ Agent 决策链路 (Event-Driven)</div>
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.8">
-      📸 感知 (Perception)<br>
-      <span style="color:var(--accent)">↓</span><br>
-      📋 事件 (Event Builder)<br>
-      <span style="color:var(--accent)">↓</span><br>
-      ⚡ 策略引擎 (Policy Engine)<br>
-      <span style="margin-left:4px;font-size:9px">Helmet Policy</span><br>
-      <span style="margin-left:4px;font-size:9px">Smoking Policy</span><br>
-      <span style="margin-left:4px;font-size:9px">Passage Policy</span><br>
-      <span style="margin-left:4px;font-size:9px">Material Policy</span><br>
-      <span style="color:var(--accent)">↓</span><br>
-      📊 风险评估 (Risk)<br>
-      <span style="color:var(--accent)">↓</span><br>
-      🧠 Qwen 解释 (Explain)<br>
-      <span style="color:var(--accent)">↓</span><br>
-      📱 展示 + 执行 (Act)
-    </div>
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.8">
-      📸 图片/视频<br>
-      <span style="color:var(--accent)">↓</span><br>
-      🎯 YOLO 感知层<br>
-      <span style="color:var(--accent)">↓</span><br>
-      📋 事件生成层<br>
-      <span style="color:var(--accent)">↓</span><br>
-      ⚡ 规则引擎层<br>
-      <span style="color:var(--accent)">↓</span><br>
-      📊 风险评分层<br>
-      <span style="color:var(--accent)">↓</span><br>
-      🧠 Qwen 解释层<br>
-      <span style="color:var(--accent)">↓</span><br>
-      📱 前端展示
-    </div>
-
     <div class="section-title">🏢 楼层选择（演示布局）</div>
     <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">A栋 (办公区装修) 1F-8F</div>
     <div class="floor-grid" id="floorGridA"></div>
     <div style="font-size:11px;color:var(--text-dim);margin:10px 0 6px">B栋 (功能区装修) 1F-4F</div>
     <div class="floor-grid" id="floorGridB"></div>
-
-    <div class="section-title">🔧 Agent 工具注册表</div>
-    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.8">
-      <span style="color:var(--success)">✓</span> YOLO Detection Tool<br>
-      <span style="color:var(--success)">✓</span> Hardhat Classifier Tool<br>
-      <span style="color:var(--success)">✓</span> Safety Policy Engine<br>
-      <span style="color:var(--success)">✓</span> Risk Assessment Tool<br>
-      <span style="color:var(--success)">✓</span> Qwen Report Generator<br>
-      <span style="color:var(--success)">✓</span> Auto Ticket Creator<br>
-      <span style="color:var(--success)">✓</span> Worker Memory Tracker<br>
-      <div style="margin-top:6px;font-size:9px;color:var(--text-dim)">Agent 自主决定调用顺序与组合</div>
-    </div>
 
     <div class="section-title">💼 商业价值（估算）</div>
     <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.8">
@@ -378,7 +372,7 @@ main{flex:1;display:flex;overflow:hidden}
     </div>
     <div class="quick-questions" id="quickQuestions">
       <button class="quick-btn" onclick="askQuick('现在有多少人没戴安全帽？')">🪖 安全帽违规</button>
-      <button class="quick-btn" onclick="askQuick('今天有人抽烟吗？')">🚬 吸烟检测</button>
+      <button class="quick-btn" onclick="askQuick('今天有人抽烟吗？')">🚬 疑似吸烟识别</button>
       <button class="quick-btn" onclick="askQuick('安全通道现在通畅吗？')">🚪 通道检查</button>
       <button class="quick-btn" onclick="askQuick('生成今天下班前的材料摆放报告')">📋 材料报告</button>
       <button class="quick-btn" onclick="askQuick('对比昨天和今天的安全情况')">📈 趋势对比</button>
