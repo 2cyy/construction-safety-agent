@@ -333,8 +333,8 @@ main{flex:1;display:flex;overflow:hidden}
       🎯 检测：YOLOv8n + 专用安全帽模型<br>
       🧠 语义：Qwen-VL-max 视觉大模型<br>
       ⚙️ 架构：事件驱动 Agent (感知→事件→规则→风险→解释)<br>
-      🖥️ 目标部署：Jetson Orin NX 边缘盒子<br>
-      <span style="color:var(--warning);font-size:9px">⚠️ 本页面为技术演示，非生产环境</span>
+      🎯 边缘部署方案设计：Jetson Orin NX × 12台（模拟）<br>
+      <span style="color:var(--warning);font-size:9px">⚠️ 本页面为技术演示，非生产环境。违规数据为模拟。</span>
     </div>
   </aside>
 
@@ -764,7 +764,7 @@ function genOverallResponse(msg){
 }
 
 function genHelpResponse(){
-  return `<div>👋 我是<strong>广州腾讯总部大楼施工安全管理 AI 智能体</strong>，基于真实工地数据集训练。</div>
+  return `<div>👋 我是<strong>广州腾讯总部大楼施工安全管理 AI 智能体</strong>，基于公开数据集与样例模拟验证。</div>
   <div class="response-card info"><div class="card-title">🤖 核心功能（全部基于真实数据训练）</div>
   <div class="card-row"><span class="label">🪖 安全帽检测</span><span class="value">YOLOv8s | GDUT-HWD 3,174张</span></div>
   <div class="card-row"><span class="label">🚬 吸烟检测</span><span class="value">两阶段检测 | 5帧时序确认</span></div>
