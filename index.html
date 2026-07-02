@@ -264,7 +264,7 @@ main{flex:1;display:flex;overflow:hidden}
   </div>
   <div class="header-right">
     <span class="status-dot"></span>
-    <span class="status-text">系统运行中 · 32路摄像头在线</span>
+    <span class="status-text">系统运行中 · 模拟32路摄像头在线</span>
     <span class="time-display" id="liveTime">--</span>
   </div>
 </header>
@@ -427,7 +427,7 @@ main{flex:1;display:flex;overflow:hidden}
       <div class="live-feed-footer">
         <span>检测人数: <span id="detectedCount">8</span></span>
         <span style="color:var(--danger)">违规: <span id="violationCount">2</span></span>
-        <span>模型: YOLOv8s <span style="color:var(--success)">●</span></span>
+        <span>模型: YOLOv8n (模拟演示) <span style="color:var(--success)">●</span></span>
         <span style="font-size:9px;color:var(--info)" id="liveFeed1Source"></span>
       </div>
     </div>
@@ -717,7 +717,7 @@ function genDatasetInfo(){
   html += `<tr style="color:var(--success)"><td><strong>总计</strong></td><td><strong>${Object.values(DATASET_INFO).reduce((s,i)=>s+i.images,0).toLocaleString()}</strong></td><td>-</td><td>-</td><td>-</td></tr>`;
   html += `</table></div>`;
   html += `<div class="img-card"><img src="${getRandomImage()}" onerror="this.style.display='none'"><div class="img-caption">📸 真实工地图像示例（来源：Pexels/Unsplash 免费商用摄影）</div></div>`;
-  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💡 训练策略：以上数据集均采用 YOLO 标注格式，80%训练/20%验证。针对广州腾讯大楼场景，额外采集 500 张现场图片进行微调（fine-tuning），使 mAP@50 从 86.2% 提升至 91.8%。</div>`;
+  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💡 训练策略：以上数据集均采用 YOLO 标注格式，80%训练/20%验证。针对广州腾讯大楼场景，额外采集 500 张现场图片进行微调（fine-tuning），使 检测精度需在真实现场数据微调后验证。</div>`;
   return html;
 }
 
@@ -731,7 +731,7 @@ function genHelmetResponse(msg){
   const repeat = filtered.filter(v=>v.desc&&v.desc.includes('第2次')).length;
   const zoneBreakdown = Object.entries(byZone).map(([z,c])=>`<div class="card-row"><span class="label">${z}</span><span class="value" style="color:var(--danger)">${c} 次</span></div>`).join('');
 
-  let html = `<div>根据 YOLOv8s-Head 模型实时检测，`;
+  let html = `<div>根据 YOLOv8n 模型实时检测，`;
   if(zone){
     html += `<strong>${zone}</strong> 共检测到 <span style="color:var(--danger);font-weight:700">${filtered.length}</span> 次未佩戴安全帽违规。`;
   } else {
@@ -756,7 +756,7 @@ function genHelmetResponse(msg){
     {tool:'Memory Tracker', input:'Worker ID', output:`${repeat}人重复→升级`, confidence:100, status:'ok'},
   ]);
   html += eventSample();
-  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💡 建议：A-3F 今日违规集中，建议加强该楼层安全巡检频次。工人 W-0152 今日 2 次违规，已自动推送整改工单。<br>🔬 技术说明：检测模型在 GDUT-HWD 验证集上 mAP@50=91.8%。</div>`;
+  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💡 建议：A-3F 今日违规集中，建议加强该楼层安全巡检频次。工人 W-0152 今日 2 次违规，已自动推送整改工单。<br>🔬 技术说明：检测模型在 GDUT-HWD 验证集上 精度需现场微调验证。</div>`;
   return html;
 }
 
@@ -897,14 +897,14 @@ function genOverallResponse(msg){
   html += `<div class="card-row"><span class="label">🚬 禁烟管理</span><span class="value">${Math.max(0,30-smoking*10)} / 30</span></div>`;
   html += `<div class="card-row"><span class="label">🚪 通道畅通</span><span class="value">${Math.max(0,20-blocked*5)} / 20</span></div>`;
   html += `<div class="card-row"><span class="label">📦 材料摆放</span><span class="value">8 / 10</span></div></div>`;
-  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">📌 最薄弱环节：${helmet>=10?'安全帽佩戴':smoking>=2?'吸烟管控':blocked>=2?'通道管理':'材料摆放'}，建议优先改善。<br>📊 在全部 ${ZONES.length} 个施工区域中排名后 20%：A-3F, B-1F。<br>🔬 系统基于 <strong>GDUT-HWD (3,174张) + Construction-PPE (1,416张) + SH17 (8,099张)</strong> 三大真实数据集训练，现场微调后 mAP@50=91.8%。</div>`;
+  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">📌 最薄弱环节：${helmet>=10?'安全帽佩戴':smoking>=2?'吸烟管控':blocked>=2?'通道管理':'材料摆放'}，建议优先改善。<br>📊 在全部 ${ZONES.length} 个施工区域中排名后 20%：A-3F, B-1F。<br>🔬 系统基于 <strong>GDUT-HWD (3,174张) + Construction-PPE (1,416张) + SH17 (8,099张)</strong> 三大真实数据集训练，现场微调后 精度需现场微调验证。</div>`;
   return html;
 }
 
 function genHelpResponse(){
   return `<div>👋 我是<strong>广州腾讯总部大楼施工安全管理 AI 智能体</strong>，基于公开数据集与样例模拟验证。</div>
   <div class="response-card info"><div class="card-title">🤖 核心功能（全部基于真实数据训练）</div>
-  <div class="card-row"><span class="label">🪖 安全帽检测</span><span class="value">YOLOv8s | GDUT-HWD 3,174张</span></div>
+  <div class="card-row"><span class="label">🪖 安全帽检测</span><span class="value">YOLOv8n | GDUT-HWD 3,174张</span></div>
   <div class="card-row"><span class="label">🚬 吸烟检测</span><span class="value">两阶段检测 | 5帧时序确认</span></div>
   <div class="card-row"><span class="label">🚪 通道监控</span><span class="value">SAM分割 | 三级预警</span></div>
   <div class="card-row"><span class="label">📦 材料合规</span><span class="value">MobileSAM+SSIM | 6区监测</span></div>
@@ -916,7 +916,7 @@ function genHelpResponse(){
 function genGeneralResponse(msg){
   return `<div>收到你的问题。我专注于<strong>施工安全管理</strong>，核心技术栈：</div>
   <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
-    <span class="alert-badge warning">🪖 安全帽 YOLOv8s</span>
+    <span class="alert-badge warning">🪖 安全帽 YOLOv8n</span>
     <span class="alert-badge danger">🚬 吸烟检测</span>
     <span class="alert-badge warning">🚪 通道SAM</span>
     <span class="alert-badge" style="background:#10b98122;color:var(--success)">📦 材料合规</span>
@@ -1009,7 +1009,7 @@ function showDetailedReport(){
       2. B-1F 禁烟巡查（连续 2 日检测到吸烟）<br>
       3. A-3F 东侧通道清理确认<br>
       4. B-1F/B-2F 材料合规整改<br><br>
-      <span style="color:var(--text-dim);font-size:10px">🔬 检测模型：YOLOv8s-Head (GDUT-HWD+微调) + YOLOv8n-tiny (烟头) + MobileSAM (分割) + DeepSORT (追踪)</span>
+      <span style="color:var(--text-dim);font-size:10px">🔬 检测模型：YOLOv8n (GDUT-HWD+微调) + YOLOv8n-tiny (烟头) + MobileSAM (分割) + DeepSORT (追踪)</span>
     </div>`;
   document.getElementById('reportModal').style.display='flex';
 }
@@ -1455,7 +1455,7 @@ function init(){
     <div style="margin-top:8px">当前系统状态：</div>
     <div class="response-card success"><div class="card-title success">✅ 系统就绪 — 基于真实工地数据集</div>
       <div class="card-row"><span class="label">📹 摄像头</span><span class="value">32路在线</span></div>
-      <div class="card-row"><span class="label">🪖 安全帽检测</span><span class="value">YOLOv8s | GDUT-HWD 3174张</span></div>
+      <div class="card-row"><span class="label">🪖 安全帽检测</span><span class="value">YOLOv8n | GDUT-HWD 3174张</span></div>
       <div class="card-row"><span class="label">🚬 吸烟检测</span><span class="value">两阶段 | 5帧时序确认</span></div>
       <div class="card-row"><span class="label">🚪 通道监控</span><span class="value">SAM + 三级预警</span></div>
       <div class="card-row"><span class="label">📦 材料监测</span><span class="value">MobileSAM + SSIM评分</span></div>
