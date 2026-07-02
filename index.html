@@ -323,7 +323,8 @@ main{flex:1;display:flex;overflow:hidden}
       <button class="quick-btn" onclick="askQuick('生成今天下班前的材料摆放报告')">📋 材料报告</button>
       <button class="quick-btn" onclick="askQuick('对比昨天和今天的安全情况')">📈 趋势对比</button>
       <button class="quick-btn" onclick="askQuick('今天整体安全评分多少？')">🏆 综合评分</button>
-      <button class="quick-btn" onclick="askQuick('你们用什么数据集训练的？')">📊 数据来源</button>
+      <button class="quick-btn" onclick="fetchRiskReport()" style="background:linear-gradient(135deg,#ef4444,#f59e0b);color:#fff;border-color:#ef4444;font-weight:700">📊 实时风险报告</button>
+      <button class="quick-btn" onclick="fetchEvents()">📋 事件日志</button>
       <button class="quick-btn" onclick="triggerUpload()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-color:#667eea;font-weight:700">📸 上传真实工地图AI分析</button>
     </div>
     <div class="chat-messages" id="chatMessages"></div>
@@ -877,7 +878,7 @@ function updateStats(){
 function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
 
 // ==================== AI 视觉分析 (Qwen-VL 千问后端) ====================
-const BACKEND_URL = 'http://localhost:9001';  // 双引擎后端端口
+const BACKEND_URL = 'http://localhost:9000';  // V2 事件驱动后端
 let latestAnalysisResult = null;
 
 // 触发文件选择
@@ -1010,13 +1011,37 @@ function renderAIResult(data, fileName){
   html += `<div style="margin-top:6px;font-size:12px;line-height:1.5;color:var(--text)">💬 ${escapeHtml(details)}</div>`;
   html += `</div>`;
 
-  // 操作建议
+  // V2: 告警等级徽章
+  if(data.alert_grade){
+    const gradeColors = {info:'var(--success)',warning:'var(--warning)',critical:'var(--danger)',emergency:'#ff0000'};
+    const gradeEmoji = {info:'🟢',warning:'🟡',critical:'🔴',emergency:'🚨'};
+    html += `<div class="response-card" style="border-left:3px solid ${gradeColors[data.alert_grade]||'var(--info)'};text-align:center;margin-top:8px">
+      <div style="font-size:24px">${gradeEmoji[data.alert_grade]||''} <strong>${(data.alert_grade||'').toUpperCase()}</strong></div>
+      <div style="font-size:10px;color:var(--text-dim)">告警等级</div>
+    </div>`;
+  }
+
+  // V2: 规则触发标签
+  if(data.rule_triggers && data.rule_triggers.length > 0){
+    html += `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">`;
+    data.rule_triggers.forEach(r => html += `<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:#ef444422;color:var(--danger)">⚡ ${r}</span>`);
+    html += `</div>`;
+  }
+
+  // V2: AI建议
+  if(data.recommendations && data.recommendations.length > 0){
+    html += `<div class="response-card warning"><div class="card-title warning">💡 AI 建议</div>`;
+    data.recommendations.forEach(r => html += `<div style="font-size:11px;color:var(--text);padding:2px 0">• ${escapeHtml(r)}</div>`);
+    html += `</div>`;
+  }
+
+  // 违规告警
   if(noHelmet>0 || smoking>0 || blocked>0 || material>0){
-    html += `<div class="response-card warning"><div class="card-title warning">⚠️ 检测到违规，请立即处理</div>`;
-    if(noHelmet>0) html += `<div style="font-size:11px;color:var(--danger)">🪖 YOLO检测到 <strong>${noHelmet}</strong> 人未正确佩戴安全帽</div>`;
-    if(smoking>0) html += `<div style="font-size:11px;color:var(--danger)">🚬 千问检测到吸烟行为</div>`;
-    if(blocked>0) html += `<div style="font-size:11px;color:var(--warning)">🚪 千问检测到安全通道堵塞</div>`;
-    if(material>0) html += `<div style="font-size:11px;color:var(--warning)">📦 千问检测到材料摆放违规</div>`;
+    html += `<div class="response-card warning"><div class="card-title warning">⚠️ 检测到违规</div>`;
+    if(noHelmet>0) html += `<div style="font-size:11px;color:var(--danger)">🪖 <strong>${noHelmet}</strong> 人未正确佩戴安全帽</div>`;
+    if(smoking>0) html += `<div style="font-size:11px;color:var(--danger)">🚬 检测到吸烟行为</div>`;
+    if(blocked>0) html += `<div style="font-size:11px;color:var(--warning)">🚪 安全通道堵塞</div>`;
+    if(material>0) html += `<div style="font-size:11px;color:var(--warning)">📦 材料摆放违规</div>`;
     html += `<div style="margin-top:4px;font-size:9px;color:var(--text-dim)">已自动推送告警至现场安全员</div></div>`;
   }
 
@@ -1038,7 +1063,52 @@ function renderAIResult(data, fileName){
 }
 
 // 后端健康检查
-async function checkBackendHealth(){
+async // ==================== V2 事件查询 & 风险报告 ====================
+async function fetchEvents(type, zone){
+  try {
+    let url = `${BACKEND_URL}/events?limit=20`;
+    if(type) url += `&event_type=${type}`;
+    if(zone) url += `&zone=${zone}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    addMessage('agent', `<div>📋 <strong>近期安全事件</strong> (${data.count}条)</div>
+    <div class="response-card info">${data.events.slice(0,10).map(e =>
+      `<div class="card-row"><span class="label">${e.timestamp ? e.timestamp.slice(11,19) : ''} | ${e.zone||'-'}</span><span class="value"><span class="alert-badge ${e.severity==='emergency'||e.severity==='critical'?'danger':'warning'}">${e.event_type}</span> ${e.source}</span></div>`
+    ).join('')}</div>`, true);
+  } catch(e) {
+    addMessage('agent', `❌ 无法获取事件：${escapeHtml(e.message)}。请确认后端已启动。`, true);
+  }
+}
+
+async function fetchRiskReport(){
+  try {
+    const resp = await fetch(`${BACKEND_URL}/risk`);
+    const r = await resp.json();
+    const gradeColors = {info:'var(--success)',warning:'var(--warning)',critical:'var(--danger)',emergency:'#ff0000'};
+    let html = `<div>📊 <strong>实时风险报告</strong></div>`;
+    html += `<div class="response-card ${r.overall>=80?'success':r.overall>=55?'warning':'danger'}" style="text-align:center">
+      <div style="font-size:40px;font-weight:900;color:${r.overall>=80?'var(--success)':r.overall>=55?'var(--warning)':'var(--danger)'}">${r.overall}<span style="font-size:14px">/100</span></div>
+      <div style="font-size:16px;color:${gradeColors[r.alert_grade]}">${r.alert_grade.toUpperCase()}</div></div>`;
+    html += `<div class="response-card info"><div class="card-title">📊 维度评分</div>`;
+    if(r.dimensions){
+      for(const [k,v] of Object.entries(r.dimensions)){
+        html += `<div class="card-row"><span class="label">${k==='helmet'?'🪖':k==='smoking'?'🚬':k==='passage'?'🚪':'📦'} ${k}</span><span class="value">${v}/</span></div>`;
+      }
+    }
+    html += `</div>`;
+    if(r.recommendations && r.recommendations.length > 0){
+      html += `<div style="margin-top:8px">`;
+      r.recommendations.forEach(rec => html += `<div style="font-size:11px;color:var(--text-dim)">💡 ${escapeHtml(rec)}</div>`);
+      html += `</div>`;
+    }
+    html += `<div style="margin-top:4px;font-size:9px;color:var(--text-dim)">事件总数: ${r.event_count||0} | 更新时间: ${r.timestamp||''}</div>`;
+    addMessage('agent', html, true);
+  } catch(e) {
+    addMessage('agent', `❌ 无法获取风险报告：${escapeHtml(e.message)}`, true);
+  }
+}
+
+function checkBackendHealth(){
   try {
     const resp = await fetch(`${BACKEND_URL}/health`);
     const data = await resp.json();
