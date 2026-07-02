@@ -317,9 +317,9 @@ main{flex:1;display:flex;overflow:hidden}
       <div style="color:var(--danger);font-weight:700;margin-bottom:3px">⚡ Agent 执行层（智能体模块）</div>
       <span style="color:var(--success)">✓</span> 自动告警推送<br>
       <span style="color:var(--success)">✓</span> 整改工单生成<br>
-      <span style="color:var(--success)">✓</span> 人工复核队列<br>
-      <span style="color:var(--success)">✓</span> 每日安全日报<br>
-      <span style="color:var(--text-dim)">○</span> 整改闭环追踪(规划)
+      <span style="color:var(--success)">✓</span> 工单状态追踪<br>
+      <span style="color:var(--success)">✓</span> 复检自动关闭<br>
+      <span style="color:var(--success)">✓</span> 每日安全日报
     </div>
 
     <div class="section-title">📊 今日概览（演示数据）</div>
@@ -776,11 +776,18 @@ function genHelmetResponse(msg){
   html += `<div class="response-card danger"><div class="card-title danger">🪖 安全帽违规详情</div>${zoneBreakdown}`;
   html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">📌 违规最高发区域：<span style="color:var(--danger)">A-3F (${byZone['A-3F']||0}次)</span> | 重复违规人员：W-0152, W-0201</div></div>`;
   html += `<div class="img-card"><img src="images/hardhat_workers.jpg" onerror="this.style.display='none'"><div class="img-caption">📸 参考：工地工人规范佩戴安全帽（来源：Pexels 免费商用）</div></div>`;
-  // Agent Memory: repeat violator escalation
+  // Agent Memory: repeat violator escalation + 工单系统
   if(repeat > 0){
-    html += `<div class="response-card warning"><div class="card-title warning">🧠 Agent Memory: 重复违规升级</div>`;
+    html += `<div class="response-card warning"><div class="card-title warning">🧠 Agent Memory: 重复违规升级 + 工单</div>`;
     html += `<div style="font-size:11px;color:var(--text)">⚠️ W-0152, W-0201 今日第2次违规 → 风险等级提升 → 已加入重点观察名单</div>`;
-    html += `<div style="margin-top:3px;font-size:10px;color:var(--text-dim)">✓ 自动生成整改工单（负责人：安全员-张工，截止：17:00）| ✓ 已推送告警</div></div>`;
+    html += `<div style="margin-top:6px;background:#1a1a1a;border-radius:6px;padding:8px;font-size:10px;line-height:1.6">`;
+    html += `<div style="color:var(--warning);margin-bottom:3px">🎫 自动生成整改工单</div>`;
+    html += `<div style="color:var(--text-dim)">工单 #TK-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-00${repeat}</div>`;
+    html += `<div style="color:var(--text-dim)">类型：安全帽违规 | 区域：A-3F</div>`;
+    html += `<div style="color:var(--text-dim)">负责人：安全员-张工 | 截止：17:00</div>`;
+    html += `<div style="color:var(--warning)">状态：⏳ 待处理</div>`;
+    html += `<div style="margin-top:3px;font-size:9px;color:var(--text-dim)">闭环路径：检测 → 工单 → 处理 → 复检 → 关闭</div>`;
+    html += `</div></div>`;
   }
   html += toolTrace([
     {tool:'YOLO Detection', input:'Image → BBox', output:`${total}人检测`, confidence:94, status:'ok'},
@@ -817,7 +824,14 @@ function genSmokingResponse(msg){
     {tool:'Policy Engine', input:'Event', output:'Smoking Policy: 多帧确认→疑似', confidence:100, status:'ok'},
     {tool:'Reflection', input:'YOLO(61%) vs Pose(73%)', output:'冲突→人工复核', confidence:100, status:'ok'},
   ]);
-  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">⚠️ B-1F 材料堆放区为禁火区域！<br>👤 W-0201 今日已 2 次违规 → 已生成整改工单 #TK-0042（负责人：李工，截止：17:00）<br>🔬 疑似吸烟行为识别：烟头小目标+手口动作+多帧时序；证据不足时进入人工复核。</div>`;
+  html += `<div class="response-card warning" style="margin-top:8px"><div class="card-title warning">🎫 自动生成整改工单</div>`;
+  html += `<div style="font-size:10px;color:var(--text-dim);line-height:1.6">`;
+  html += `工单 #TK-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-S1<br>`;
+  html += `类型：疑似吸烟 | 区域：B-1F 材料堆放区<br>`;
+  html += `负责人：安全主管-李工 | 截止：17:00<br>`;
+  html += `状态：<span style="color:var(--warning)">⏳ 待处理</span> | 闭环：检测→工单→处理→复检→关闭`;
+  html += `</div></div>`;
+  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">⚠️ B-1F 为禁火区域！👤 W-0201 今日已 2 次违规。<br>🔬 疑似吸烟行为识别：烟头小目标+手口动作+多帧时序；证据不足时进入人工复核。</div>`;
   return html;
 }
 
