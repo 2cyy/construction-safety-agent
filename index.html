@@ -1120,7 +1120,6 @@ async function sendToBackend(imageBase64, fileName){
 function renderAIResult(data, fileName){
   removeTyping();
 
-  // 兼容新旧响应格式
   const score = data.overall_score || Math.max(0, 100 - (data.yolo_no_helmet||data.no_helmet||0)*5 - (data.qwen_smoking||data.smoking||0)*15 - (data.qwen_channel_blocked||data.channel_blocked||0)*15 - (data.qwen_material_issue||data.material_issue||0)*10);
   const engines = data.engines_used || ['Qwen-VL'];
   const totalPeople = data.yolo_total_persons || data.total_people || 0;
@@ -1131,7 +1130,20 @@ function renderAIResult(data, fileName){
   const details = data.qwen_details || data.details || '';
   const persons = data.persons || [];
 
-  let html = `<div>📸 <strong>双引擎AI分析完成！</strong>（${escapeHtml(fileName)}）</div>`;
+  // Platform pipeline header
+  let html = `<div style="text-align:center;padding:8px;background:linear-gradient(90deg,#0d1a24,#162231,#0d1a24);border-radius:8px;margin-bottom:10px;font-size:10px">
+    <span style="color:var(--text-dim)">📸 上传图片</span>
+    <span style="color:var(--accent);margin:0 4px">→</span>
+    <span style="color:var(--success)">🎯 AI 识别</span>
+    <span style="color:var(--accent);margin:0 4px">→</span>
+    <span style="color:var(--warning)">📋 结构化</span>
+    <span style="color:var(--accent);margin:0 4px">→</span>
+    <span style="color:#667eea">🧠 LLM 解释</span>
+    <span style="color:var(--accent);margin:0 4px">→</span>
+    <span style="color:var(--danger)">📊 生成报告</span>
+  </div>`;
+
+  html += `<div>📸 <strong>分析完成</strong>（${escapeHtml(fileName)}）</div>`;
 
   // 引擎标识
   html += `<div style="margin:4px 0;display:flex;gap:6px">`;
