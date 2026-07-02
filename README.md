@@ -106,6 +106,51 @@ uvicorn app:app --port 9000
 
 ---
 
+## 部署说明
+
+### 本地开发
+```bash
+# 1. 安装依赖
+pip install -r requirements.txt
+
+# 2. 配置 API Key（编辑 app.py 第 32 行）
+DASHSCOPE_API_KEY = "sk-your-key"
+
+# 3. 下载模型（首次运行自动下载，或手动）
+# YOLOv8n 自动下载；hardhat_model.pt 需手动下载：
+curl -L -o hardhat_model.pt "https://hf-mirror.com/keremberke/yolov8n-hard-hat-detection/resolve/main/best.pt"
+
+# 4. 启动后端
+uvicorn app:app --reload --port 9101
+
+# 5. 打开前端
+# 直接双击 index.html，或访问 https://2cyy.github.io/construction-safety-agent/
+```
+
+### 环境变量
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `DASHSCOPE_API_KEY` | (app.py 内置) | 阿里云百炼 API Key |
+| `QWEN_MODEL` | `qwen-vl-max` | 视觉模型名称 |
+
+### 数据库
+- **当前**: SQLite (`safety_events.db`)，自动创建，适合 Demo
+- **生产建议**: PostgreSQL/MySQL + 对象存储（MinIO/OSS）保存证据图
+
+### 生产部署架构
+```
+摄像头 (RTSP/ONVIF/GB28181)
+  → 边缘盒子 (Jetson Orin NX)
+  → AI 推理服务 (YOLO + Qwen-VL)
+  → 事件数据库 (PostgreSQL)
+  → 对象存储 (证据图)
+  → 后端 API (FastAPI)
+  → 前端大屏 (Nginx)
+  → 工单系统 + 权限账号 + 日志监控
+```
+
+---
+
 ## API
 
 | 端点 | 说明 |
@@ -114,9 +159,13 @@ uvicorn app:app --port 9000
 | `GET /events?type=&zone=&limit=` | 查询事件历史 |
 | `GET /risk` | 当前风险评分 + zone breakdown |
 | `GET /rules` | 查看安全规则集 |
-| `GET /health` | 健康检查 + 模型状态 |
+| `GET /health` | 健康检查(后端/DB/模型/API) |
+| `GET /tickets?status=` | 工单查询 |
+| `POST /tickets/{id}/resolve` | 标记工单已处理 |
+| `POST /tickets/{id}/close` | 复检关闭工单 |
+| `GET /events?type=&zone=&limit=` | 事件查询(SQLite持久化) |
 
-启动后访问 `http://localhost:9000/docs` 查看交互式文档。
+启动后访问 `http://localhost:9101/docs` 查看交互式文档。
 
 ---
 

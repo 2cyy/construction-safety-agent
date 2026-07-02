@@ -919,6 +919,13 @@ function genSmokingResponse(msg){
   html += `负责人：安全主管-李工 | 截止：17:00<br>`;
   html += `状态：<span style="color:var(--warning)">⏳ 待处理</span> | 闭环：检测→工单→处理→复检→关闭`;
   html += `</div></div>`;
+  // 人工复核入口
+  html += `<div class="response-card" style="border:2px solid var(--warning);margin-top:8px"><div class="card-title warning">👨‍💻 人工复核</div>`;
+  html += `<div style="display:flex;gap:6px;margin-top:4px">`;
+  html += `<button onclick="addMessage('agent','✅ 已确认违规。生成工单并通知安全员。',true)" style="flex:1;padding:6px;background:var(--danger);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:700;font-size:10px">✓ 确认违规</button>`;
+  html += `<button onclick="addMessage('agent','❌ 已驳回。该标记从事件列表中移除。',true)" style="flex:1;padding:6px;background:var(--success);color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:700;font-size:10px">✗ 驳回</button>`;
+  html += `<button onclick="addMessage('agent','🎫 工单 #TK-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-S1 已生成。负责人：安全主管-李工。截止：17:00。',true)" style="flex:1;padding:6px;background:var(--warning);color:#000;border:none;border-radius:4px;cursor:pointer;font-weight:700;font-size:10px">🎫 生成工单</button>`;
+  html += `</div></div>`;
   html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">⚠️ B-1F 为禁火区域！👤 W-0201 今日已 2 次违规。<br>🔬 疑似吸烟行为识别：烟头小目标+手口动作+多帧时序；证据不足时进入人工复核。</div>`;
   return html;
 }
