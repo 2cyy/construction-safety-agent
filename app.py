@@ -658,6 +658,125 @@ def extract_json(text: str) -> Optional[dict]:
 
 
 # ============================================================================
+# SECTION 7B: SQLite Persistence + Ticket System
+# ============================================================================
+import sqlite3
+from contextlib import contextmanager
+
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "safety_events.db")
+
+def init_db():
+    """初始化 SQLite 数据库"""
+    with get_db() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT UNIQUE, event_type TEXT, person_id INTEGER,
+                confidence REAL, zone TEXT, bbox TEXT, timestamp TEXT,
+                severity TEXT, source TEXT, metadata TEXT, image_base64 TEXT
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS tickets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_no TEXT UNIQUE, event_type TEXT, zone TEXT,
+                description TEXT, assignee TEXT, deadline TEXT,
+                status TEXT DEFAULT 'open', created_at TEXT,
+                resolved_at TEXT, verified_at TEXT, verify_image TEXT
+            )
+        """)
+        conn.commit()
+
+@contextmanager
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+def db_save_event(event: SafetyEvent, image_base64: str = ""):
+    """保存事件到 SQLite"""
+    try:
+        with get_db() as conn:
+            conn.execute("""
+                INSERT OR IGNORE INTO events (event_id, event_type, person_id, confidence, zone, bbox, timestamp, severity, source, metadata, image_base64)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?)
+            """, (event.event_id, event.event_type, event.person_id, event.confidence,
+                  event.zone, json.dumps(event.bbox or []), event.timestamp,
+                  event.severity.value, event.source, json.dumps(event.metadata), image_base64))
+            conn.commit()
+    except Exception as e:
+        print(f"[DB] Save event failed: {e}")
+
+def db_save_ticket(event: SafetyEvent, details: str = "") -> str:
+    """违规事件自动生成工单"""
+    ticket_no = f"TK-{datetime.now().strftime('%Y%m%d')}-{event.event_id[:4].upper()}"
+    try:
+        with get_db() as conn:
+            conn.execute("""
+                INSERT OR IGNORE INTO tickets (ticket_no, event_type, zone, description, assignee, deadline, status, created_at)
+                VALUES (?,?,?,?,?,?,?,?)
+            """, (ticket_no, event.event_type, event.zone or "unknown",
+                  details or f"{event.event_type} 违规",
+                  "安全员-张工", datetime.now().strftime("%Y-%m-%d 17:00"),
+                  "open", datetime.now().isoformat()))
+            conn.commit()
+        return ticket_no
+    except Exception as e:
+        print(f"[DB] Save ticket failed: {e}")
+        return ""
+
+def db_get_events(event_type: str = None, zone: str = None, limit: int = 50) -> list:
+    try:
+        with get_db() as conn:
+            sql = "SELECT * FROM events WHERE 1=1"
+            params = []
+            if event_type:
+                sql += " AND event_type=?"; params.append(event_type)
+            if zone:
+                sql += " AND zone=?"; params.append(zone)
+            sql += " ORDER BY id DESC LIMIT ?"; params.append(limit)
+            return [dict(r) for r in conn.execute(sql, params).fetchall()]
+    except:
+        return []
+
+def db_get_tickets(status: str = None, limit: int = 50) -> list:
+    try:
+        with get_db() as conn:
+            sql = "SELECT * FROM tickets WHERE 1=1"
+            params = []
+            if status:
+                sql += " AND status=?"; params.append(status)
+            sql += " ORDER BY id DESC LIMIT ?"; params.append(limit)
+            return [dict(r) for r in conn.execute(sql, params).fetchall()]
+    except:
+        return []
+
+def db_update_ticket(ticket_no: str, status: str, verify_image: str = ""):
+    try:
+        with get_db() as conn:
+            if status == "resolved":
+                conn.execute("UPDATE tickets SET status=?, resolved_at=? WHERE ticket_no=?",
+                             (status, datetime.now().isoformat(), ticket_no))
+            elif status == "closed":
+                conn.execute("UPDATE tickets SET status=?, verified_at=?, verify_image=? WHERE ticket_no=?",
+                             (status, datetime.now().isoformat(), verify_image, ticket_no))
+            else:
+                conn.execute("UPDATE tickets SET status=? WHERE ticket_no=?", (status, ticket_no))
+            conn.commit()
+    except Exception as e:
+        print(f"[DB] Update ticket failed: {e}")
+
+# Auto-init DB on module load
+try:
+    init_db()
+    print("[DB] SQLite 数据库就绪")
+except Exception as e:
+    print(f"[DB] 初始化失败: {e}")
+
+# ============================================================================
 # SECTION 8: API Endpoints
 # ============================================================================
 
@@ -719,6 +838,7 @@ def health_check():
         "hardhat_model_loaded": hardhat_model is not None,
         "api_configured": DASHSCOPE_API_KEY != "sk-your-api-key-here",
         "memory_buffer": {"active_tracks": len(buffer.tracks), "event_history": len(buffer.event_history)},
+        "database": "SQLite (safety_events.db)",
         "timestamp": datetime.now().isoformat()
     }
 
@@ -744,6 +864,24 @@ def get_risk():
     no_helmet_count = sum(1 for e in recent if e.event_type == "no_helmet")
     score = RiskScorer.calculate(recent, triggered, yolo_no_helmet=no_helmet_count)
     return score.model_dump()
+
+@app.get("/tickets")
+def get_tickets(status: Optional[str] = Query(None), limit: int = Query(50)):
+    """查询工单"""
+    tickets = db_get_tickets(status=status, limit=limit)
+    return {"count": len(tickets), "tickets": tickets}
+
+@app.post("/tickets/{ticket_no}/resolve")
+def resolve_ticket(ticket_no: str):
+    """标记工单为已处理"""
+    db_update_ticket(ticket_no, "resolved")
+    return {"ticket_no": ticket_no, "status": "resolved"}
+
+@app.post("/tickets/{ticket_no}/close")
+def close_ticket(ticket_no: str, verify_image: str = ""):
+    """关闭工单（复检验证）"""
+    db_update_ticket(ticket_no, "closed", verify_image)
+    return {"ticket_no": ticket_no, "status": "closed"}
 
 @app.get("/rules")
 def get_rules():
@@ -864,6 +1002,16 @@ def analyze_image_endpoint(request: ImageAnalysisRequest):
         no_helmet = max(yolo_no_helmet_raw, qwen_no_helmet)
 
     all_events = yolo_events + rule_events
+
+    # SQLite 持久化: 保存事件 + 违规自动生成工单
+    tickets_created = []
+    for evt in all_events:
+        db_save_event(evt, request.image_base64)
+        if evt.event_type in ("no_helmet", "smoking", "channel_blocked", "material_misplaced"):
+            ticket_no = db_save_ticket(evt, evt.metadata.get("rule_name", evt.event_type))
+            if ticket_no:
+                tickets_created.append(ticket_no)
+
     risk = RiskScorer.calculate(all_events, rule_triggers,
                                 yolo_helmet_ok=yolo_result.get("helmet_ok", 0),
                                 yolo_no_helmet=no_helmet,

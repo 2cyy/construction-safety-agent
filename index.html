@@ -1208,7 +1208,7 @@ function updateStats(){
 function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
 
 // ==================== AI 视觉分析 (Qwen-VL 千问后端) ====================
-const BACKEND_URL = 'http://localhost:9000';  // V2 事件驱动后端
+const BACKEND_URL = 'http://localhost:9100';  // V2 事件驱动后端
 let latestAnalysisResult = null;
 
 // 触发文件选择
