@@ -1108,7 +1108,7 @@ async function fetchRiskReport(){
   }
 }
 
-function checkBackendHealth(){
+async function checkBackendHealth(){
   try {
     const resp = await fetch(`${BACKEND_URL}/health`);
     const data = await resp.json();
