@@ -1074,13 +1074,24 @@ function removeTyping(){ const e=document.getElementById('typingIndicator'); if(
 function generateResponse(msg){
   switch(detectIntent(msg)){
     case 'dataset_info': return genDatasetInfo();
-    case 'helmet_query': return genHelmetResponse(msg);
-    case 'smoking_query': return genSmokingResponse(msg);
-    case 'passage_query': return genPassageResponse(msg);
-    case 'material_query': return genMaterialResponse(msg);
+    case 'helmet_query':
+    case 'smoking_query':
+    case 'passage_query':
+    case 'material_query':
+    case 'trend_query':
+    case 'overall':
+      return `<div>⚠️ <strong>文字查询不支持真实检测。</strong></div>
+      <div class="response-card warning" style="font-size:12px;line-height:1.8">
+        安全分析需要上传工地图片，系统会通过 <strong>Qwen-VL 视觉大模型 + YOLO 辅助</strong> 进行真实检测。<br><br>
+        👉 请点击下方 <strong style="color:#667eea">📸 上传真实工地图AI分析</strong> 按钮。<br><br>
+        上传后可获得：<br>
+        · Qwen-VL 逐人安全帽/吸烟/通道/材料分析<br>
+        · YOLO 精确人员 bbox 定位<br>
+        · 自动生成整改工单<br>
+        · 风险评分 + 告警等级<br>
+        · 违规证据图（支持缩放）
+      </div>`;
     case 'daily_report': return genDailyReport(msg);
-    case 'trend_query': return genTrendResponse(msg);
-    case 'overall': return genOverallResponse(msg);
     case 'help': return genHelpResponse();
     default: return genGeneralResponse(msg);
   }
