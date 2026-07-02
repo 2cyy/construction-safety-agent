@@ -274,6 +274,13 @@ main{flex:1;display:flex;overflow:hidden}
   <!-- LEFT SIDEBAR -->
   <aside class="left-sidebar">
     <div class="section-title">🏗️ 平台技术栈</div>
+    <div style="background:var(--bg-card);border:1px solid #667eea;border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
+      <div style="color:#667eea;font-weight:700;margin-bottom:3px">🧠 检测哲学：确认 / 疑似 / 需复核</div>
+      大模型 API 做主分析<br>
+      YOLO 等模型作为可选工具<br>
+      系统不强行说100%识别<br>
+      低置信度 → 人工复核兜底
+    </div>
 
     <!-- Module 0: Video Gateway -->
     <div style="background:var(--bg-card);border:1px solid #06b6d4;border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
@@ -286,12 +293,12 @@ main{flex:1;display:flex;overflow:hidden}
 
     <!-- Module 1: AI Perception -->
     <div style="background:var(--bg-card);border:1px solid var(--accent);border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
-      <div style="color:var(--accent);font-weight:700;margin-bottom:3px">🎯 AI 感知层</div>
-      <span style="color:var(--success)">✓</span> YOLO 人员检测<br>
-      <span style="color:var(--success)">✓</span> 安全帽分类器<br>
-      <span style="color:var(--success)">✓</span> 手部姿态估计<br>
-      <span style="color:var(--success)">✓</span> SAM 区域分割<br>
-      <span style="color:var(--success)">✓</span> Qwen-VL 场景理解
+      <div style="color:var(--accent);font-weight:700;margin-bottom:3px">🎯 AI 感知层（大模型主分析）</div>
+      <span style="color:var(--success)">✓</span> Qwen-VL 主分析引擎<br>
+      <span style="color:var(--text-dim)">+</span> YOLO 辅助工具(可选)<br>
+      <span style="color:var(--text-dim)">+</span> 安全帽分类器(可选)<br>
+      <span style="color:var(--text-dim)">+</span> 姿态估计(可选)<br>
+      <span style="color:var(--text-dim)">+</span> SAM 分割(可选)
     </div>
 
     <!-- Module 2: Event + Policy -->
@@ -1253,7 +1260,7 @@ function renderAIResult(data, fileName, imageBase64){
   }
   // 千问 引擎结果卡片
   html += `<div class="response-card info"><div class="card-title">🧠 Qwen-VL 语义理解引擎</div>`;
-  html += `<div class="card-row"><span class="label">🚬 吸烟行为</span><span class="value" style="color:${smokeColor}">${smokeStatus}</span></div>`;
+  html += `<div class="card-row"><span class="label">🚬 吸烟行为</span><span class="value" style="font-size:12px;color:${smokeColor}">${smokeStatus}</span></div>`;
   if(smoking===0 && suspiciousKeywords){
     html += `<div style="margin-top:4px;padding:6px;background:#1a1a1a;border-radius:4px;font-size:10px;color:var(--warning)">⚠️ 检测到可疑关键词，自动进入人工复核队列。<br>若图中存在手部持物、手靠近口部、疑似烟头小目标，需安全员确认。</div>`;
   }
