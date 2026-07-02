@@ -231,33 +231,8 @@ def detect_persons(image) -> dict:
             x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()[:4].astype(int)
             conf = float(box.conf[0]) if hasattr(box.conf, '__iter__') else float(box.conf)
 
-            # Step 2: 裁剪头部区域 → 专用硬帽模型分类
-            has_helmet = None  # None = unknown
-            head_y2 = y1 + int((y2 - y1) * 0.4)
-            head_crop = img_array[max(0, y1-10):head_y2, x1:x2]
-
-            if hardhat_model is not None and head_crop.size > 200:
-                try:
-                    hresults = hardhat_model(head_crop, conf=0.2, verbose=False)
-                    if hresults and len(hresults) > 0 and hresults[0].boxes is not None:
-                        best_conf, best_cls = 0, -1
-                        for j in range(len(hresults[0].boxes)):
-                            c = float(hresults[0].boxes.conf[j])
-                            if c > best_conf:
-                                best_conf, best_cls = c, int(hresults[0].boxes.cls[j])
-                        if best_cls >= 0:
-                            has_helmet = (best_cls == 0)  # class 0 = Hardhat
-                except Exception:
-                    pass
-
-            if has_helmet is True:
-                helmet_ok += 1
-            elif has_helmet is False:
-                no_helmet += 1
-            else:
-                # None → 安全优先原则：标记为疑似未戴
-                no_helmet += 1
-                has_helmet = False
+            # YOLO 只负责数人和画框，安全帽判断全部交给千问
+            has_helmet = None  # 千问判断
 
             persons.append({
                 "id": i + 1,
@@ -991,15 +966,11 @@ def analyze_image_endpoint(request: ImageAnalysisRequest):
     qwen_people = qwen_result.get("total_people", 0)
     qwen_no_helmet = qwen_result.get("no_helmet", 0)
 
-    # ===== Data Fusion (必须在 RiskScorer 之前) =====
+    # ===== Data Fusion =====
     yolo_persons = yolo_result.get("total_persons", 0)
     total_people = max(yolo_persons, qwen_people)
-    # 融合策略: 优先信任千问的场景级判断，YOLO的硬帽分类在小人头上不可靠
-    yolo_no_helmet_raw = yolo_result.get("no_helmet_detected", 0)
-    if qwen_no_helmet == 0 and yolo_no_helmet_raw > 0:
-        no_helmet = 0  # 信任千问
-    else:
-        no_helmet = max(yolo_no_helmet_raw, qwen_no_helmet)
+    # 安全帽判断全部交给千问（YOLO只数人画框）
+    no_helmet = qwen_no_helmet
 
     all_events = yolo_events + rule_events
 
