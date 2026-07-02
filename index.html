@@ -285,10 +285,10 @@ main{flex:1;display:flex;overflow:hidden}
     <!-- Module 0: Video Gateway -->
     <div style="background:var(--bg-card);border:1px solid #06b6d4;border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
       <div style="color:#06b6d4;font-weight:700;margin-bottom:3px">📹 视频接入层 (Video Gateway)</div>
-      <span style="color:var(--success)">✓</span> RTSP | <span style="color:var(--success)">✓</span> ONVIF | <span style="color:var(--success)">✓</span> GB28181<br>
-      <span style="color:var(--success)">✓</span> 海康/大华 SDK<br>
-      在线: <span style="color:var(--success)" id="camOnline">32</span> / 离线: <span style="color:var(--danger)" id="camOffline">0</span><br>
-      <span style="font-size:9px;color:var(--warning)">⚠ 当前为模拟摄像头接入，真实落地需接 RTSP/ONVIF 视频流服务</span>
+      <span style="color:var(--success)">✓</span> RTSP | ONVIF | GB28181 | 海康/大华<br>
+      在线: <span style="color:var(--success)" id="camOnline">31</span> / <span style="color:var(--danger)" id="camOffline">1</span> / 总计: 32<br>
+      延迟: <span style="color:var(--success)">42ms</span> | FPS: <span style="color:var(--success)">24.8</span><br>
+      <span style="font-size:9px;color:var(--warning)">⚠ 模拟接入，真实落地需接RTSP/ONVIF视频流</span>
     </div>
 
     <!-- Module 1: AI Perception -->
@@ -439,7 +439,10 @@ main{flex:1;display:flex;overflow:hidden}
       </div>
       <div class="live-feed-body" id="liveFeed1Body">
         <img id="liveFeed1Img" src="images/construction_site_wide.jpg" alt="A-3F 施工现场">
-        <div class="live-feed-overlay" id="liveFeed1Overlay"></div>
+        <div class="live-feed-overlay" id="liveFeed1Overlay">
+          <div style="position:absolute;top:4px;left:4px;background:#000000cc;color:#0f0;font-size:10px;font-family:monospace;padding:2px 6px;border-radius:3px" id="liveTimestamp">--:--:--</div>
+          <div style="position:absolute;bottom:4px;right:4px;background:#000000cc;color:var(--success);font-size:9px;padding:2px 6px;border-radius:3px">FPS:25 | 延迟:38ms | GPU:Orin NX</div>
+        </div>
       </div>
       <div class="live-feed-footer">
         <span>检测人数: <span id="detectedCount">8</span></span>
@@ -1202,13 +1205,29 @@ function buildFloorGrid(){
   for(let i=1;i<=4;i++){const b=document.createElement('div');b.className='floor-btn';if(i===1)b.classList.add('has-alert');b.textContent=`${i}F`;b.onclick=()=>askQuick(`B-${i}F 安全情况如何？`);gb.appendChild(b);}
 }
 
-function updateStats(){
-  document.getElementById('statHelmet').textContent=TODAY_VIOLATIONS.filter(v=>v.type==='no_helmet').length;
-  document.getElementById('statSmoking').textContent=TODAY_VIOLATIONS.filter(v=>v.type==='smoking').length;
-  document.getElementById('statPassage').textContent=PASSAGES.filter(p=>p.status==='blocked').length;
-  document.getElementById('statMaterial').textContent=Math.round(MATERIAL_ZONES.reduce((s,z)=>s+z.compliance,0)/MATERIAL_ZONES.length)+'%';
-  document.getElementById('detectedCount').textContent=5+Math.floor(Math.random()*5);
-  document.getElementById('violationCount').textContent=1+Math.floor(Math.random()*3);
+async function updateStats(){
+  // Fetch real data from backend
+  try {
+    const [riskResp, eventsResp] = await Promise.all([
+      fetch(`${BACKEND_URL}/risk`).then(r=>r.json()).catch(()=>null),
+      fetch(`${BACKEND_URL}/events?limit=100&minutes=1440`).then(r=>r.json()).catch(()=>null)
+    ]);
+    if(riskResp){
+      document.getElementById('statHelmet').textContent = riskResp.dimensions?.helmet || '-';
+      document.getElementById('statSmoking').textContent = riskResp.dimensions?.smoking || '-';
+      document.getElementById('statPassage').textContent = riskResp.dimensions?.passage || '-';
+      document.getElementById('statMaterial').textContent = (riskResp.dimensions?.material || '-') + '%';
+      document.getElementById('violationCount').textContent = riskResp.event_count || 0;
+    }
+    if(eventsResp){
+      document.getElementById('detectedCount').textContent = eventsResp.count || 0;
+    }
+  } catch(e) {
+    // Fallback to zeros
+    ['statHelmet','statSmoking','statPassage','statMaterial','detectedCount','violationCount'].forEach(id => {
+      document.getElementById(id).textContent = '-';
+    });
+  }
 }
 
 function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
@@ -1515,7 +1534,8 @@ async function loadTickets(){
           <span style="font-weight:700;font-size:10px">${t.ticket_no}</span>
           <span style="color:${color}">${emoji} ${t.status}</span>
         </div>
-        <div style="color:var(--text-dim);margin-top:2px">${t.event_type} | ${t.zone||'-'} | ${t.assignee||'-'}</div>`;
+        <div style="color:var(--text-dim);margin-top:2px">${t.event_type} | ${t.zone||'-'}</div>
+        <div style="color:var(--text-dim);font-size:9px">👤 ${t.assignee||'-'} | ⏰ ${t.deadline||'-'}</div>`;
       if(t.status === 'open'){
         html += `<div style="margin-top:4px"><button onclick="resolveTicket('${t.ticket_no}')" style="width:100%;padding:3px;background:var(--warning);color:#000;border:none;border-radius:3px;font-size:9px;cursor:pointer;font-weight:700">✓ 标记已处理</button></div>`;
       } else if(t.status === 'resolved'){
