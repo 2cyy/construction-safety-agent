@@ -915,7 +915,7 @@ if __name__ == "__main__":
     ║  Construction Safety Agent V2 — Event-Driven Industrial  ║
     ║  Perception → Events → Rules → Risk → Explanation       ║
     ║                                                          ║
-    ║  uvicorn app:app --port 9000                            ║
+    ║  uvicorn app:app --reload --port 9000                   ║
     ║  API Docs: http://localhost:9000/docs                    ║
     ╚══════════════════════════════════════════════════════════╝
     """)

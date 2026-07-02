@@ -730,7 +730,7 @@ function openEvidenceViewer(idx, base64Data, analysisData){
   wrapper.style.cssText = 'position:relative;display:inline-block;padding:40px';
 
   const imgEl = document.createElement('img');
-  imgEl.src = img.src;
+  imgEl.src = src;
   imgEl.style.cssText = 'max-width:90vw;max-height:85vh;display:block;border-radius:8px;transition:transform 0.2s;cursor:zoom-in';
   imgEl.title = '滚轮缩放 | 拖拽移动 | 双击切换大小';
 
@@ -791,10 +791,10 @@ function openEvidenceViewer(idx, base64Data, analysisData){
   }
 
   wrapper.appendChild(imgEl);
-  if(img.caption){
+  if(caption){
     const cap = document.createElement('div');
     cap.style.cssText = 'text-align:center;color:var(--text-dim);font-size:12px;margin-top:8px';
-    cap.textContent = img.caption;
+    cap.textContent = caption;
     wrapper.appendChild(cap);
   }
   const hint = document.createElement('div');
@@ -1272,7 +1272,7 @@ async function sendToBackend(imageBase64, fileName){
     </div>
     <div style="margin-top:8px;font-size:11px;color:var(--text-dim)">
       💡 请确认：<br>
-      1. Python后端已启动：<code>uvicorn app:app --reload --port 8000</code><br>
+      1. Python后端已启动：<code>uvicorn app:app --reload --port 9000</code><br>
       2. API Key 已正确配置在 app.py 中<br>
       3. 后端地址：<a href="${BACKEND_URL}/docs" target="_blank" style="color:var(--accent)">${BACKEND_URL}/docs</a>
     </div>`, true);
