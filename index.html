@@ -318,7 +318,7 @@ main{flex:1;display:flex;overflow:hidden}
       <div class="stat-sub">较昨日 ↑3 次 | 参考 GDUT-HWD 基准</div>
     </div>
     <div class="stat-card" onclick="askQuick('今天有人抽烟吗？')">
-      <div class="stat-row"><span class="stat-label">🚬 吸烟违规</span><span class="stat-value warning" id="statSmoking">3</span></div>
+      <div class="stat-row"><span class="stat-label">🚬 疑似吸烟</span><span class="stat-value warning" id="statSmoking">3</span></div>
       <div class="stat-sub">B区材料堆放区 ×2 | 严重违规</div>
     </div>
     <div class="stat-card" onclick="askQuick('安全通道现在都通畅吗？')">
@@ -469,7 +469,7 @@ main{flex:1;display:flex;overflow:hidden}
     <div class="panel-section-title">🚨 实时告警推送</div>
     <div class="alert-feed" id="alertFeed">
       <div class="alert-item critical">
-        <div class="alert-header"><span class="alert-type critical">🚬 吸烟违规</span><span class="alert-time">10:42</span></div>
+        <div class="alert-header"><span class="alert-type critical">🚬 疑似吸烟</span><span class="alert-time">10:42</span></div>
         <div class="alert-detail">B区疑似吸烟，需人工复核 | B-1F | W-0215</div>
       </div>
       <div class="alert-item warning">
@@ -547,16 +547,17 @@ function refreshDetectionOverlays(){
   const overlay1 = document.getElementById('liveFeed1Overlay');
   const overlay2 = document.getElementById('liveFeed2Overlay');
 
-  // Simulated detection boxes on live feed 1 (construction site)
+  // Simulated detection boxes (演示用固定框，非真实识别)
+  overlay1.innerHTML += `<div style="position:absolute;top:2px;left:50%;transform:translateX(-50%);background:#000000aa;color:var(--warning);font-size:9px;padding:2px 8px;border-radius:3px">⚠ 模拟检测框，仅用于演示</div>`;
   const boxes1 = [
-    {x:12,y:18,w:14,h:28,label:'安全帽 ✓',cls:'ok'},
-    {x:30,y:22,w:13,h:26,label:'安全帽 ✓',cls:'ok'},
-    {x:48,y:15,w:12,h:24,label:'未戴安全帽!',cls:'bad'},
-    {x:65,y:20,w:13,h:27,label:'安全帽 ✓',cls:'ok'},
-    {x:78,y:25,w:14,h:30,label:'吸烟中!',cls:'bad'},
-    {x:8,y:55,w:12,h:22,label:'安全帽 ✓',cls:'ok'},
-    {x:40,y:60,w:13,h:25,label:'安全帽 ✓',cls:'ok'},
-    {x:70,y:58,w:14,h:28,label:'未戴安全帽!',cls:'bad'},
+    {x:12,y:18,w:14,h:28,label:'安全帽(模拟)',cls:'ok'},
+    {x:30,y:22,w:13,h:26,label:'安全帽(模拟)',cls:'ok'},
+    {x:48,y:15,w:12,h:24,label:'未戴安全帽(模拟)',cls:'bad'},
+    {x:65,y:20,w:13,h:27,label:'安全帽(模拟)',cls:'ok'},
+    {x:78,y:25,w:14,h:30,label:'疑似吸烟(模拟)',cls:'bad'},
+    {x:8,y:55,w:12,h:22,label:'安全帽(模拟)',cls:'ok'},
+    {x:40,y:60,w:13,h:25,label:'安全帽(模拟)',cls:'ok'},
+    {x:70,y:58,w:14,h:28,label:'未戴安全帽(模拟)',cls:'bad'},
   ];
 
   overlay1.innerHTML = boxes1.map((b,i)=>{
@@ -717,7 +718,7 @@ function genDatasetInfo(){
   html += `<tr style="color:var(--success)"><td><strong>总计</strong></td><td><strong>${Object.values(DATASET_INFO).reduce((s,i)=>s+i.images,0).toLocaleString()}</strong></td><td>-</td><td>-</td><td>-</td></tr>`;
   html += `</table></div>`;
   html += `<div class="img-card"><img src="${getRandomImage()}" onerror="this.style.display='none'"><div class="img-caption">📸 真实工地图像示例（来源：Pexels/Unsplash 免费商用摄影）</div></div>`;
-  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💡 训练策略：以上数据集均采用 YOLO 标注格式，80%训练/20%验证。针对广州腾讯大楼场景，额外采集 500 张现场图片进行微调（fine-tuning），使 检测精度需在真实现场数据微调后验证。</div>`;
+  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💡 训练策略：以上数据集均采用 YOLO 标注格式，80%训练/20%验证。针对广州腾讯大楼场景，理论落地时可采集现场图片进行增量微调，使 检测精度需在真实现场数据微调后验证。</div>`;
   return html;
 }
 
@@ -762,8 +763,8 @@ function genHelmetResponse(msg){
 
 function genSmokingResponse(msg){
   const smoking = TODAY_VIOLATIONS.filter(v=>v.type==='smoking');
-  let html = `<div>今日累计检测到 <span style="color:var(--danger);font-weight:700">${smoking.length}</span> 次吸烟违规（两阶段检测：MediaPipe 手口定位 + YOLOv8n-tiny 烟头检测 + 5帧时序确认），均为 <span style="color:var(--danger);font-weight:700">严重违规</span>。</div>`;
-  html += `<div class="response-card danger"><div class="card-title danger">🚬 吸烟违规记录</div>`;
+  let html = `<div>今日累计标记 <span style="color:var(--warning);font-weight:700">${smoking.length}</span> 处疑似吸烟行为（手口动作+烟头小目标+多帧复核；当前为模拟演示），均需 <span style="color:var(--warning);font-weight:700">人工复核确认</span>。</div>`;
+  html += `<div class="response-card warning"><div class="card-title warning">🚬 疑似吸烟标记</div>`;
   smoking.forEach(s=>{html += `<div class="card-row"><span class="label">${s.time} | ${s.zone}</span><span class="value" style="color:var(--danger)">${s.worker} ${s.desc}</span></div>`;});
   html += `</div>`;
   html += `<div class="img-card"><img src="images/worker_smoking.jpg" onerror="this.style.display='none'"><div class="img-caption">📸 参考：工地工人场景（来源：Pexels 免费商用）</div></div>`;
@@ -840,7 +841,7 @@ function genDailyReport(msg){
   html += `<div style="font-size:12px;color:var(--text-dim)">综合安全评分（基于 4 维度加权） ${score>=80?'🟢':score>=60?'🟡':'🔴'}</div></div>`;
   html += `<div class="response-card info"><div class="card-title">📊 各维度详情</div>`;
   html += `<div class="card-row"><span class="label">🪖 安全帽违规 (权重40%)</span><span class="value">${helmet} 次 → ${Math.max(0,40-helmet*3)}/40</span></div>`;
-  html += `<div class="card-row"><span class="label">🚬 吸烟违规 (权重30%)</span><span class="value">${smoking} 次 → ${Math.max(0,30-smoking*10)}/30</span></div>`;
+  html += `<div class="card-row"><span class="label">🚬 疑似吸烟 (权重30%)</span><span class="value">${smoking} 次 → ${Math.max(0,30-smoking*10)}/30</span></div>`;
   html += `<div class="card-row"><span class="label">🚪 通道堵塞 (权重20%)</span><span class="value">${blocked} 条 → ${Math.max(0,20-blocked*5)}/20</span></div>`;
   html += `<div class="card-row"><span class="label">📦 材料合规 (权重10%)</span><span class="value">${matAvg}% → ${matAvg>=85?10:5}/10</span></div></div>`;
   // Worker Memory: check repeat violators
@@ -904,7 +905,7 @@ function genOverallResponse(msg){
 function genHelpResponse(){
   return `<div>👋 我是<strong>广州腾讯总部大楼施工安全管理 AI 智能体</strong>，基于公开数据集与样例模拟验证。</div>
   <div class="response-card info"><div class="card-title">🤖 核心功能（全部基于真实数据训练）</div>
-  <div class="card-row"><span class="label">🪖 安全帽检测</span><span class="value">YOLOv8n | GDUT-HWD 3,174张</span></div>
+  <div class="card-row"><span class="label">🪖 安全帽检测</span><span class="value">理论: YOLOv8n (GDUT-HWD) | 当前为模拟演示</span></div>
   <div class="card-row"><span class="label">🚬 吸烟检测</span><span class="value">两阶段检测 | 5帧时序确认</span></div>
   <div class="card-row"><span class="label">🚪 通道监控</span><span class="value">SAM分割 | 三级预警</span></div>
   <div class="card-row"><span class="label">📦 材料合规</span><span class="value">MobileSAM+SSIM | 6区监测</span></div>
@@ -994,7 +995,7 @@ function showDetailedReport(){
     <table class="report-table">
       <tr><th>维度</th><th>今日</th><th>昨日</th><th>趋势</th><th>评级</th></tr>
       <tr><td>🪖 安全帽违规</td><td>${helmet} 次</td><td>${YESTERDAY_VIOLATIONS.filter(v=>v.type==='no_helmet').length} 次</td><td style="color:${helmet>9?'var(--danger)':'var(--success)'}">${helmet>9?'↑ 变差':'→ 持平'}</td><td>${helmet<=10?'✅':'⚠️'}</td></tr>
-      <tr><td>🚬 吸烟违规</td><td>${smoking} 次</td><td>${YESTERDAY_VIOLATIONS.filter(v=>v.type==='smoking').length} 次</td><td style="color:${smoking>1?'var(--danger)':'var(--success)'}">${smoking>1?'↑ 变差':'→ 持平'}</td><td>${smoking<=1?'✅':'❌'}</td></tr>
+      <tr><td>🚬 疑似吸烟</td><td>${smoking} 次</td><td>${YESTERDAY_VIOLATIONS.filter(v=>v.type==='smoking').length} 次</td><td style="color:${smoking>1?'var(--danger)':'var(--success)'}">${smoking>1?'↑ 变差':'→ 持平'}</td><td>${smoking<=1?'✅':'❌'}</td></tr>
       <tr><td>🚪 通道堵塞</td><td>${blocked} 条</td><td>1 条</td><td style="color:var(--warning)">→ 持平</td><td>⚠️</td></tr>
       <tr><td>📦 材料合规率</td><td>${matAvg}%</td><td>91%</td><td style="color:var(--warning)">↓ -${100-matAvg}%</td><td>${matAvg>=85?'✅':'⚠️'}</td></tr>
     </table>
@@ -1009,7 +1010,7 @@ function showDetailedReport(){
       2. B-1F 禁烟巡查（连续 2 日检测到吸烟）<br>
       3. A-3F 东侧通道清理确认<br>
       4. B-1F/B-2F 材料合规整改<br><br>
-      <span style="color:var(--text-dim);font-size:10px">🔬 检测模型：YOLOv8n (GDUT-HWD+微调) + YOLOv8n-tiny (烟头) + MobileSAM (分割) + DeepSORT (追踪)</span>
+      <span style="color:var(--text-dim);font-size:10px">🔬 理论方案：YOLOv8n/SAM/MediaPipe/Qwen-VL | 当前网页为交互原型演示</span>
     </div>`;
   document.getElementById('reportModal').style.display='flex';
 }
@@ -1023,7 +1024,7 @@ function addAlert(v){
   if(w&&w.textContent.includes('等待'))w.remove();
   const d=document.createElement('div');
   d.className=`alert-item ${v.severity}`;
-  d.innerHTML=`<div class="alert-header"><span class="alert-type ${v.severity}">${v.type==='no_helmet'?'🪖 安全帽违规':v.type==='smoking'?'🚬 吸烟违规':'🚪 通道堵塞'}</span><span class="alert-time">${v.time}</span></div><div class="alert-detail">${v.desc} | ${v.zone} | ${v.worker||''}</div>`;
+  d.innerHTML=`<div class="alert-header"><span class="alert-type ${v.severity}">${v.type==='no_helmet'?'🪖 安全帽违规':v.type==='smoking'?'🚬 疑似吸烟':'🚪 通道堵塞'}</span><span class="alert-time">${v.time}</span></div><div class="alert-detail">${v.desc} | ${v.zone} | ${v.worker||''}</div>`;
   feed.insertBefore(d,feed.firstChild);
   while(feed.children.length>10)feed.lastChild.remove();
   d.style.background=v.severity==='critical'?'#ef444422':'#f59e0b11';
