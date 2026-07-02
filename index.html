@@ -432,6 +432,22 @@ main{flex:1;display:flex;overflow:hidden}
       </div>
     </div>
 
+    <!-- VIOLATION IMAGE: 实时违规图片展示 -->
+    <div class="live-feed-card" id="violationCard" style="display:none">
+      <div class="live-feed-header">
+        <span>🚨 违规现场 <span class="live-dot" style="display:inline-block;margin-left:4px"></span></span>
+        <span style="color:var(--text-dim);font-size:10px" id="violationTime"></span>
+      </div>
+      <div class="live-feed-body" style="height:220px;position:relative" id="violationBody">
+        <img id="violationImg" src="" alt="违规图片" style="width:100%;height:100%;object-fit:cover;display:block">
+        <div class="live-feed-overlay" id="violationOverlay"></div>
+      </div>
+      <div class="live-feed-footer">
+        <span id="violationSummary"></span>
+        <span style="color:var(--danger);font-size:10px">⚠ 实时违规截图</span>
+      </div>
+    </div>
+
     <!-- LIVE FEED 2: Material Storage Area -->
     <div class="live-feed-card">
       <div class="live-feed-header">
@@ -1096,6 +1112,10 @@ async function sendToBackend(imageBase64, fileName){
     const data = await response.json();
     latestAnalysisResult = data;
     renderAIResult(data, fileName, imageBase64);
+    // 如果有违规，在右侧展示违规图片
+    if(data.no_helmet>0 || data.qwen_smoking>0 || data.qwen_channel_blocked>0 || data.qwen_material_issue>0){
+      showViolationImage(imageBase64, data);
+    }
     statusEl.textContent = '已连接 ✓';
     statusEl.style.color = 'var(--success)';
 
@@ -1263,6 +1283,53 @@ function renderAIResult(data, fileName, imageBase64){
 }
 
 // 后端健康检查
+// ==================== 违规图片实时展示 ====================
+function showViolationImage(imageBase64, data){
+  const card = document.getElementById('violationCard');
+  const img = document.getElementById('violationImg');
+  const overlay = document.getElementById('violationOverlay');
+  const summary = document.getElementById('violationSummary');
+  const timeEl = document.getElementById('violationTime');
+
+  card.style.display = 'block';
+  img.src = 'data:image/jpeg;base64,' + imageBase64;
+  timeEl.textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+
+  // Build violation summary
+  const violations = [];
+  if(data.no_helmet > 0) violations.push(`🪖 未戴安全帽 ${data.no_helmet}人`);
+  if(data.qwen_smoking > 0) violations.push(`🚬 吸烟 ${data.qwen_smoking}处`);
+  if(data.qwen_channel_blocked > 0) violations.push(`🚪 通道堵塞`);
+  if(data.qwen_material_issue > 0) violations.push(`📦 材料违规`);
+  summary.innerHTML = violations.join(' | ') || '违规详情';
+
+  // Draw simulated violation boxes on the image
+  setTimeout(() => {
+    const boxes = [];
+    // Helmet violation boxes (simulated positions)
+    if(data.no_helmet > 0){
+      for(let i=0; i<Math.min(data.no_helmet,3); i++){
+        boxes.push({x:20+i*25, y:15+i*5, w:14, h:20, label:'未戴安全帽', color:'#ef4444'});
+      }
+    }
+    // Smoking box
+    if(data.qwen_smoking > 0){
+      boxes.push({x:55, y:20, w:15, h:22, label:'疑似吸烟', color:'#ff6600'});
+    }
+    // Channel blocked
+    if(data.qwen_channel_blocked > 0){
+      boxes.push({x:85, y:10, w:12, h:80, label:'通道堵塞', color:'#f59e0b'});
+    }
+    overlay.innerHTML = boxes.map(b =>
+      `<div class="detection-box violation" style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%">
+        <div class="detection-box-label bad">${b.label}</div>
+      </div>`
+    ).join('');
+    // Scroll violation card into view
+    card.scrollIntoView({behavior:'smooth',block:'center'});
+  }, 200);
+}
+
 // ==================== V2 事件查询 & 风险报告 ====================
 async function fetchEvents(type, zone){
   try {
