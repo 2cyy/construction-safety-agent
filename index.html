@@ -336,6 +336,21 @@ main{flex:1;display:flex;overflow:hidden}
     <div style="font-size:11px;color:var(--text-dim);margin:10px 0 6px">B栋 (功能区装修) 1F-4F</div>
     <div class="floor-grid" id="floorGridB"></div>
 
+    <div class="section-title">📐 Policy 规则配置</div>
+    <div style="background:var(--bg-card);border:1px solid var(--warning);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.7">
+      <span style="color:var(--success)">✓</span> Helmet: Person AND NOT Helmet ≥ 3s → 违规<br>
+      <span style="color:var(--success)">✓</span> Smoking: Pose + Cigarette ≥ 3帧 → 疑似<br>
+      <span style="color:var(--success)">✓</span> Passage: ROI占用 >30% ≥ 5min → 堵塞<br>
+      <span style="color:var(--success)">✓</span> Material: SSIM <85% → 需整改
+    </div>
+
+    <div class="section-title">📹 Camera Memory（模拟）</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.7">
+      <div class="card-row"><span class="label">CAM_A3F_03</span><span class="value" style="color:var(--danger)">8次/10min</span></div>
+      <div class="card-row"><span class="label">CAM_B1F_01</span><span class="value" style="color:var(--warning)">3次/10min</span></div>
+      <div class="card-row"><span class="label">CAM_A5F_02</span><span class="value" style="color:var(--success)">0次</span></div>
+    </div>
+
     <div class="section-title">💼 商业价值（估算）</div>
     <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.8">
       <div class="card-row"><span class="label">⏱️ 预计减少人工巡检成本</span><span class="value" style="color:var(--success)">60-80%</span></div>
@@ -621,13 +636,16 @@ const YESTERDAY_VIOLATIONS = [
 // ==================== Agent Tool Calling Trace ====================
 function toolTrace(tools, time='1.2s'){
   let h = `<div style="margin-top:8px;background:#0d1a24;border-radius:6px;padding:8px 10px;font-size:10px;font-family:monospace;color:var(--text-dim);line-height:1.6">`;
-  h += `<div style="color:var(--accent);margin-bottom:4px">⚡ Agent 执行流程</div>`;
+  h += `<div style="color:var(--accent);margin-bottom:4px">⚡ Planner → Tool Execution → Reflection</div>`;
   tools.forEach((t,i) => {
     const icon = t.status==='ok'?'✓':'✗';
     const color = t.status==='ok'?'var(--success)':'var(--danger)';
-    h += `<div style="color:${color}">${icon} 调用 ${t.tool} <span style="color:var(--text-dim)">(${t.result})</span></div>`;
+    h += `<div style="color:${color};margin-top:2px">${icon} ${t.tool}</div>`;
+    if(t.input) h += `<div style="margin-left:12px;color:#556">Input: ${t.input}</div>`;
+    if(t.output) h += `<div style="margin-left:12px;color:#556">Output: ${t.output}</div>`;
+    if(t.confidence) h += `<div style="margin-left:12px;color:${t.confidence>80?'var(--success)':t.confidence>60?'var(--warning)':'var(--danger)'}">Confidence: ${t.confidence}%</div>`;
   });
-  h += `<div style="margin-top:3px;color:var(--text-dim)">⏱ 响应耗时：${time}</div></div>`;
+  h += `<div style="margin-top:3px;color:var(--text-dim)">⏱ ${time}</div></div>`;
   return h;
 }
 
@@ -715,11 +733,11 @@ function genHelmetResponse(msg){
     html += `<div style="margin-top:3px;font-size:10px;color:var(--text-dim)">✓ 自动生成整改工单（负责人：安全员-张工，截止：17:00）| ✓ 已推送告警</div></div>`;
   }
   html += toolTrace([
-    {tool:'YOLO Detection Tool', result:`检测${total}人`, status:'ok'},
-    {tool:'Safety Policy Engine', result:`Helmet Policy 触发`, status:'ok'},
-    {tool:'Risk Assessment Tool', result:`风险等级: ${total>10?'HIGH':'MEDIUM'}`, status:'ok'},
-    {tool:'Qwen Report Generator', result:'生成分析报告', status:'ok'},
-    {tool:'Worker Memory Tracker', result:`${repeat}人重复违规`, status:'ok'},
+    {tool:'YOLO Detection', input:'Image → BBox', output:`${total}人检测`, confidence:94, status:'ok'},
+    {tool:'Hardhat Classifier', input:'Head ROI', output:`${total-filtered.length}合规/${filtered.length}违规`, confidence:92, status:'ok'},
+    {tool:'Policy Engine', input:'Event List', output:'Helmet Policy 触发', confidence:100, status:'ok'},
+    {tool:'Risk Scorer', input:'Violation Count', output:`风险: ${total>10?'HIGH':'MEDIUM'}`, confidence:100, status:'ok'},
+    {tool:'Memory Tracker', input:'Worker ID', output:`${repeat}人重复→升级`, confidence:100, status:'ok'},
   ]);
   html += eventSample();
   html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💡 建议：A-3F 今日违规集中，建议加强该楼层安全巡检频次。工人 W-0152 今日 2 次违规，已自动推送整改工单。<br>🔬 技术说明：检测模型在 GDUT-HWD 验证集上 mAP@50=91.8%。</div>`;
@@ -733,14 +751,23 @@ function genSmokingResponse(msg){
   smoking.forEach(s=>{html += `<div class="card-row"><span class="label">${s.time} | ${s.zone}</span><span class="value" style="color:var(--danger)">${s.worker} ${s.desc}</span></div>`;});
   html += `</div>`;
   html += `<div class="img-card"><img src="images/worker_smoking.jpg" onerror="this.style.display='none'"><div class="img-caption">📸 参考：工地工人场景（来源：Pexels 免费商用）</div></div>`;
+  html += `<div class="response-card warning" style="margin-top:8px"><div class="card-title warning">🔍 复核机制: 疑似吸烟行为识别</div>`;
+  html += `<div style="font-size:11px;line-height:1.7">`;
+  html += `<div>🧠 YOLO 烟头检测 Confidence: <strong style="color:var(--warning)">61-86%</strong></div>`;
+  html += `<div>🦴 手口姿态检测 Confidence: <strong style="color:var(--warning)">73%</strong></div>`;
+  html += `<div>⏱ 连续帧确认: <strong>3/5帧阳性 → 标记疑似</strong></div>`;
+  html += `<div style="margin-top:4px;padding:6px;background:#1a1a1a;border-radius:4px">`;
+  html += `<span style="color:var(--warning)">⚠️ 证据不足 → 进入人工复核队列</span><br>`;
+  html += `<span style="color:var(--text-dim);font-size:10px">Note: 香烟目标仅10-20px，单帧YOLO易漏检。工业方案需多阶段确认。</span></div>`;
+  html += `</div></div>`;
   html += toolTrace([
-    {tool:'YOLO Detection Tool', result:`检测${smoking.length}处疑似`, status:'ok'},
-    {tool:'Hardhat Classifier Tool', result:'跳过(非安全帽任务)', status:'ok'},
-    {tool:'Safety Policy Engine', result:'Smoking Policy 触发 (EMERGENCY)', status:'ok'},
-    {tool:'Risk Assessment Tool', result:'风险等级: EMERGENCY', status:'ok'},
-    {tool:'Auto Ticket Creator', result:'生成整改工单 #TK-0042', status:'ok'},
+    {tool:'YOLO Detection', input:'Image → Person BBox', output:`检测${smoking.length}处手部区域`, confidence:94, status:'ok'},
+    {tool:'Pose Estimator', input:'Person Crop', output:'手-嘴距离 < 阈值', confidence:73, status:'ok'},
+    {tool:'Cigarette Detector', input:'Hand ROI (4×放大)', output:'疑似烟头', confidence:61, status:'ok'},
+    {tool:'Policy Engine', input:'Event', output:'Smoking Policy: 多帧确认→疑似', confidence:100, status:'ok'},
+    {tool:'Reflection', input:'YOLO(61%) vs Pose(73%)', output:'冲突→人工复核', confidence:100, status:'ok'},
   ]);
-  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">⚠️ B-1F 材料堆放区为禁火区域！<br>👤 工人 W-0201 今日已 2 次违规 → 已自动生成整改工单 #TK-0042（负责人：安全主管-李工，截止：17:00）<br>🔬 技术说明：疑似吸烟行为识别——烟头检测放大 ROI 精度 89.1%，复杂场景需多帧复核。</div>`;
+  html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">⚠️ B-1F 材料堆放区为禁火区域！<br>👤 W-0201 今日已 2 次违规 → 已生成整改工单 #TK-0042（负责人：李工，截止：17:00）<br>🔬 疑似吸烟行为识别：烟头小目标+手口动作+多帧时序；证据不足时进入人工复核。</div>`;
   return html;
 }
 
@@ -1309,7 +1336,11 @@ function init(){
 
   setTimeout(()=>{
     addMessage('agent',`<div>👋 你好，安全总监！我是<strong>广州腾讯总部大楼施工安全管理 AI Agent</strong>。</div>
-    <div style="margin-top:8px;font-size:11px;color:var(--text-dim)">我不只检测违规，我会：<br>
+    <div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.8">
+    🎯 YOLO 负责感知 | 🧠 Qwen 负责理解<br>
+    ⚡ Policy 负责判断 | 🧭 Planner 负责规划<br>
+    🧠 Memory 负责长期状态 | 🔍 Reflection 负责纠错<br><br>
+    我不只检测违规，我会：<br>
     ✓ 发现违规 → 生成整改工单<br>
     ✓ 通知安全员 → 加入日报<br>
     ✓ 持续追踪 → 未整改自动升级<br>
