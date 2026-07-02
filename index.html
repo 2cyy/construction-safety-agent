@@ -313,6 +313,16 @@ main{flex:1;display:flex;overflow:hidden}
     <div style="font-size:11px;color:var(--text-dim);margin:10px 0 6px">B栋 (功能区装修) 1F-4F</div>
     <div class="floor-grid" id="floorGridB"></div>
 
+    <div class="section-title">💼 商业价值（模拟数据）</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.8">
+      <div class="card-row"><span class="label">⏱️ 今日节约人工巡检</span><span class="value" style="color:var(--success)">4.2 小时</span></div>
+      <div class="card-row"><span class="label">🔍 自动发现违规</span><span class="value" style="color:var(--danger)">28 起</span></div>
+      <div class="card-row"><span class="label">📉 预计降低事故风险</span><span class="value" style="color:var(--success)">32%</span></div>
+      <div class="card-row"><span class="label">📋 自动生成报告</span><span class="value" style="color:var(--info)">3 份/日</span></div>
+      <div class="card-row"><span class="label">👷 覆盖施工区域</span><span class="value">12 层</span></div>
+      <div style="margin-top:6px;font-size:9px;color:var(--warning)">⚠️ 以上为基于检测数据的模拟估算</div>
+    </div>
+
     <div class="section-title">📷 数据与模型说明</div>
     <div style="font-size:10px;color:var(--text-dim);line-height:1.6">
       📸 演示图片：Pexels/Unsplash 真实工地摄影<br>
@@ -1144,6 +1154,31 @@ async function fetchRiskReport(){
   }
 }
 
+// ==================== Agent 主动性：每日自动日报 ====================
+let lastReportDate = '';
+function scheduleDailyReport(){
+  const now = new Date();
+  const today = now.toDateString();
+  const hour = now.getHours();
+  // 首次加载或每天18:00后触发日报
+  if(today !== lastReportDate && (hour >= 18 || !lastReportDate)){
+    lastReportDate = today;
+    setTimeout(() => {
+      addMessage('agent', `<div>🤖 <strong>Agent 主动日报提醒</strong></div>
+      <div class="response-card info">
+        <div class="card-title">📋 每日安全日报已自动生成</div>
+        <div style="font-size:11px;color:var(--text-dim)">
+          ⏰ 触发时间：${now.toLocaleTimeString('zh-CN')}<br>
+          📊 今日已检测 <strong>28</strong> 起违规事件<br>
+          ⚠️ A-3F 安全帽违规率连续三日最高，建议增加巡检<br>
+          🔥 B-1F 材料堆放区今日2起吸烟告警，需重点管控<br>
+          📦 B-2F 脚手架堆放区合规率仅73%，下班前需整改
+        </div>
+      </div>`, true);
+    }, 8000);
+  }
+}
+
 async function checkBackendHealth(){
   try {
     const resp = await fetch(`${BACKEND_URL}/health`);
@@ -1158,7 +1193,7 @@ async function checkBackendHealth(){
   } catch(e) {
     document.getElementById('backendStatusText').textContent = '未连接';
     document.getElementById('backendStatusText').style.color = 'var(--text-dim)';
-    document.getElementById('apiKeyStatus').textContent = '请启动后端: uvicorn app:app --reload --port 8000';
+    document.getElementById('apiKeyStatus').textContent = '请启动后端: uvicorn app:app --reload --port 9000';
   }
 }
 
@@ -1171,7 +1206,11 @@ function init(){
   updateLiveFeedSource();
   setInterval(refreshDetectionOverlays,4000);
   checkBackendHealth();
-  setInterval(checkBackendHealth,30000); // 每30秒检查后端状态
+  setInterval(checkBackendHealth,30000);
+
+  // Agent 主动性：模拟每日18:00自动安全日报
+  scheduleDailyReport();
+  setInterval(scheduleDailyReport, 60000); // 每分钟检查一次
 
   setTimeout(()=>{
     addMessage('agent',`<div>👋 你好，安全总监！我是<strong>广州腾讯总部大楼施工安全管理 AI 智能体</strong>。</div>
