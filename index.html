@@ -718,15 +718,14 @@ function trackWorker(workerId, type){
 
 // ==================== 违规证据图生成 ====================
 function evidenceImage(imgSrc, boxes, caption){
-  // boxes: [{x%,y%,w%,h%,label,color}]
-  let h = `<div style="position:relative;display:inline-block;max-width:320px;margin:8px 0;border-radius:8px;overflow:hidden;border:2px solid var(--danger)">`;
-  h += `<div style="position:absolute;top:4px;left:4px;background:#ef4444cc;color:#fff;font-size:9px;padding:2px 6px;border-radius:3px;z-index:2">📸 违规证据</div>`;
-  h += `<img src="${imgSrc}" style="width:100%;display:block" onerror="this.style.display='none'">`;
+  let h = `<div style="position:relative;display:block;max-width:340px;margin:10px 0;border-radius:8px;overflow:hidden;border:3px solid var(--danger);box-shadow:0 0 12px rgba(239,68,68,.3)">`;
+  h += `<div style="position:absolute;top:6px;left:6px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;z-index:3">📸 违规证据</div>`;
+  h += `<img src="${imgSrc}" style="width:100%;display:block;min-height:120px" onerror="this.outerHTML='<div style=width:100%;min-height:120px;background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:11px>📸 证据图加载中...</div>'">`;
   boxes.forEach(b => {
-    h += `<div style="position:absolute;left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%;border:2px solid ${b.color||'#ef4444'};border-radius:4px;animation:boxPulseRed 1s infinite;z-index:1"></div>`;
-    h += `<div style="position:absolute;left:${b.x}%;top:${Math.max(0,b.y-6)}%;background:${b.color||'#ef4444'};color:#fff;font-size:8px;padding:1px 4px;border-radius:2px;white-space:nowrap;z-index:2">${b.label}</div>`;
+    h += `<div style="position:absolute;left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%;border:2.5px solid ${b.color||'#ef4444'};border-radius:4px;animation:boxPulseRed 1s infinite;z-index:1;box-shadow:0 0 6px ${b.color||'#ef4444'}44"></div>`;
+    h += `<div style="position:absolute;left:${b.x}%;top:${Math.max(0,b.y-7)}%;background:${b.color||'#ef4444'};color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;white-space:nowrap;z-index:2">${b.label}</div>`;
   });
-  if(caption) h += `<div style="padding:6px 8px;font-size:10px;color:var(--text-dim);background:var(--bg-input)">${caption}</div>`;
+  if(caption) h += `<div style="padding:8px 10px;font-size:11px;color:var(--text-dim);background:var(--bg-input);border-top:1px solid var(--border)">${caption}</div>`;
   h += `</div>`;
   return h;
 }
@@ -780,7 +779,15 @@ function genHelmetResponse(msg){
   const repeat = filtered.filter(v=>v.desc&&v.desc.includes('第2次')).length;
   const zoneBreakdown = Object.entries(byZone).map(([z,c])=>`<div class="card-row"><span class="label">${z}</span><span class="value" style="color:var(--danger)">${c} 次</span></div>`).join('');
 
-  let html = `<div>根据 YOLOv8n 模型实时检测，`;
+  // 证据图放最前面
+  let html = evidenceImage('images/gdut_00325.jpg', [
+    {x:48,y:15,w:12,h:24,label:'未戴安全帽',color:'#ef4444'},
+    {x:70,y:58,w:14,h:28,label:'未戴安全帽',color:'#ef4444'},
+    {x:12,y:18,w:14,h:28,label:'安全帽✓',color:'#10b981'},
+    {x:30,y:22,w:13,h:26,label:'安全帽✓',color:'#10b981'},
+  ], '📸 违规证据：红框=未戴安全帽，绿框=合规人员');
+
+  html += `<div>根据 YOLOv8n 模型实时检测，`;
   if(zone){
     html += `<strong>${zone}</strong> 共检测到 <span style="color:var(--danger);font-weight:700">${filtered.length}</span> 次未佩戴安全帽违规。`;
   } else {
@@ -790,12 +797,6 @@ function genHelmetResponse(msg){
 
   html += `<div class="response-card danger"><div class="card-title danger">🪖 安全帽违规详情</div>${zoneBreakdown}`;
   html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">📌 违规最高发区域：<span style="color:var(--danger)">A-3F (${byZone['A-3F']||0}次)</span> | 重复违规人员：W-0152, W-0201</div></div>`;
-  html += evidenceImage('images/gdut_00325.jpg', [
-    {x:48,y:15,w:12,h:24,label:'未戴安全帽',color:'#ef4444'},
-    {x:70,y:58,w:14,h:28,label:'未戴安全帽',color:'#ef4444'},
-    {x:12,y:18,w:14,h:28,label:'安全帽✓',color:'#10b981'},
-    {x:30,y:22,w:13,h:26,label:'安全帽✓',color:'#10b981'},
-  ], '📸 违规证据：A-3F 区域 YOLO 检测到未佩戴安全帽人员（红框），绿框为合规人员');
   // Agent Memory: repeat violator escalation + 工单系统
   if(repeat > 0){
     html += `<div class="response-card warning"><div class="card-title warning">🧠 Agent Memory: 重复违规升级 + 工单</div>`;
@@ -823,14 +824,15 @@ function genHelmetResponse(msg){
 
 function genSmokingResponse(msg){
   const smoking = TODAY_VIOLATIONS.filter(v=>v.type==='smoking');
-  let html = `<div>今日累计标记 <span style="color:var(--warning);font-weight:700">${smoking.length}</span> 处疑似吸烟行为（手口动作+烟头小目标+多帧复核；当前为模拟演示），均需 <span style="color:var(--warning);font-weight:700">人工复核确认</span>。</div>`;
-  html += `<div class="response-card warning"><div class="card-title warning">🚬 疑似吸烟标记</div>`;
-  smoking.forEach(s=>{html += `<div class="card-row"><span class="label">${s.time} | ${s.zone}</span><span class="value" style="color:var(--danger)">${s.worker} ${s.desc}</span></div>`;});
-  html += `</div>`;
-  html += evidenceImage('images/construction_site_wide.jpg', [
+  // 证据图放最前面
+  let html = evidenceImage('images/construction_site_wide.jpg', [
     {x:55,y:20,w:15,h:22,label:'疑似吸烟',color:'#ff6600'},
     {x:78,y:25,w:14,h:30,label:'手口区域',color:'#f59e0b'},
   ], '📸 违规证据：B-1F 材料堆放区检测到疑似吸烟行为（橙色框），手部靠近嘴部区域（黄色框）');
+  html += `<div>今日累计标记 <span style="color:var(--warning);font-weight:700">${smoking.length}</span> 处疑似吸烟行为（手口动作+烟头小目标+多帧复核；当前为模拟演示），均需 <span style="color:var(--warning);font-weight:700">人工复核确认</span>。</div>`;
+  html += `<div class="response-card warning"><div class="card-title warning">🚬 疑似吸烟标记</div>`;
+  smoking.forEach(s=>{html += `<div class="card-row"><span class="label">${s.time} | ${s.zone}</span><span class="value" style="color:var(--danger)">${s.worker} ${s.desc}</span></div>`;});
+  html += `</div>`;
   html += `<div class="response-card warning" style="margin-top:8px"><div class="card-title warning">🔍 复核机制: 疑似吸烟行为识别</div>`;
   html += `<div style="font-size:11px;line-height:1.7">`;
   html += `<div>🧠 YOLO 烟头检测 Confidence: <strong style="color:var(--warning)">61-86%</strong></div>`;
