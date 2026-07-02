@@ -841,10 +841,7 @@ function genHelmetResponse(msg){
   const repeat = filtered.filter(v=>v.desc&&v.desc.includes('第2次')).length;
   const zoneBreakdown = Object.entries(byZone).map(([z,c])=>`<div class="card-row"><span class="label">${z}</span><span class="value" style="color:var(--danger)">${c} 次</span></div>`).join('');
 
-  // 证据图（仅展示场景，不做假框）
-  let html = evidenceImage('images/gdut_00325.jpg', [], '📸 工地现场参考图：此图来自 GDUT-HWD 公开数据集，标注框需接真实 YOLO 检测结果。当前为模拟演示。');
-
-  html += `<div>根据 YOLOv8n 模型实时检测，`;
+  let html = `<div>根据模拟演示数据，`;
   if(zone){
     html += `<strong>${zone}</strong> 共检测到 <span style="color:var(--danger);font-weight:700">${filtered.length}</span> 次未佩戴安全帽违规。`;
   } else {
@@ -881,9 +878,7 @@ function genHelmetResponse(msg){
 
 function genSmokingResponse(msg){
   const smoking = TODAY_VIOLATIONS.filter(v=>v.type==='smoking');
-  // 证据图（仅展示场景，不做假框）
-  let html = evidenceImage('images/construction_site_wide.jpg', [], '📸 工地现场参考图：疑似吸烟行为识别需接入真实摄像头+YOLO检测。当前为模拟演示。');
-  html += `<div>今日累计标记 <span style="color:var(--warning);font-weight:700">${smoking.length}</span> 处疑似吸烟行为（手口动作+烟头小目标+多帧复核；当前为模拟演示），均需 <span style="color:var(--warning);font-weight:700">人工复核确认</span>。</div>`;
+  let html = `<div>今日累计标记 <span style="color:var(--warning);font-weight:700">${smoking.length}</span> 处疑似吸烟行为（手口动作+烟头小目标+多帧复核；当前为模拟演示），均需 <span style="color:var(--warning);font-weight:700">人工复核确认</span>。</div>`;
   html += `<div class="response-card warning"><div class="card-title warning">🚬 疑似吸烟标记</div>`;
   smoking.forEach(s=>{html += `<div class="card-row"><span class="label">${s.time} | ${s.zone}</span><span class="value" style="color:var(--danger)">${s.worker} ${s.desc}</span></div>`;});
   html += `</div>`;
@@ -924,7 +919,6 @@ function genPassageResponse(msg){
     if(p.duration_min>0) html += `<div class="card-row"><span class="label">持续时长</span><span class="value" style="color:var(--danger)">${p.duration_min} 分钟</span></div>`;
     html += `<div style="margin-top:6px;font-size:10px;color:var(--text-dim)">${p.status==='blocked'?'⚠️ 已通知现场安全员处理':'✅ 通道畅通'}</div></div>`;
   });
-  html += evidenceImage('images/safety_passage.jpg', [], '📸 安全通道参考图：通道占用检测需接入真实摄像头+SAM分割。当前为模拟演示。');
   if(blocked.length>0) html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💡 A-3F 东侧通道已堵塞 ${PASSAGES.find(p=>p.id==='P_A3F_E')?.duration_min} 分钟，超过 30 分钟将自动升级为严重告警。🔬 三级预警机制：黄色(>30%&>5min) → 橙色(>60%&>1min) → 红色(>30min)。</div>`;
   return html;
 }
