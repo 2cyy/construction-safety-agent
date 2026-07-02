@@ -1183,9 +1183,23 @@ function renderAIResult(data, fileName){
   }
   html += `</div>`;
 
+  // ===== 吸烟三档判定 + fallback 复核 =====
+  const allText = JSON.stringify(data).toLowerCase();
+  const suspiciousKeywords = allText.includes('烟') || allText.includes('香烟') || allText.includes('疑似') || allText.includes('手部') || allText.includes('嘴') || allText.includes('夹') || allText.includes('持物');
+  let smokeStatus, smokeColor;
+  if(smoking > 0){
+    smokeStatus = '⚠️ 确认吸烟'; smokeColor = 'var(--danger)';
+  } else if(suspiciousKeywords){
+    smokeStatus = '⚠️ 疑似吸烟，需人工复核'; smokeColor = 'var(--warning)';
+  } else {
+    smokeStatus = '未检测到明确吸烟证据'; smokeColor = 'var(--success)';
+  }
   // 千问 引擎结果卡片
   html += `<div class="response-card info"><div class="card-title">🧠 Qwen-VL 语义理解引擎</div>`;
-  html += `<div class="card-row"><span class="label">🚬 吸烟行为</span><span class="value" style="color:${smoking>0?'var(--danger)':'var(--success)'}">${smoking>0?'⚠️ 检测到吸烟':'✅ 未发现'}</span></div>`;
+  html += `<div class="card-row"><span class="label">🚬 吸烟行为</span><span class="value" style="color:${smokeColor}">${smokeStatus}</span></div>`;
+  if(smoking===0 && suspiciousKeywords){
+    html += `<div style="margin-top:4px;padding:6px;background:#1a1a1a;border-radius:4px;font-size:10px;color:var(--warning)">⚠️ 检测到可疑关键词，自动进入人工复核队列。<br>若图中存在手部持物、手靠近口部、疑似烟头小目标，需安全员确认。</div>`;
+  }
   html += `<div class="card-row"><span class="label">🚪 通道堵塞</span><span class="value" style="color:${blocked>0?'var(--danger)':'var(--success)'}">${blocked>0?'⚠️ 有堵塞':'✅ 畅通'}</span></div>`;
   html += `<div class="card-row"><span class="label">📦 材料违规</span><span class="value" style="color:${material>0?'var(--warning)':'var(--success)'}">${material>0?'⚠️ 需整改':'✅ 合规'}</span></div>`;
   html += `<div style="margin-top:6px;font-size:12px;line-height:1.5;color:var(--text)">💬 ${escapeHtml(details)}</div>`;
