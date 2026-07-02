@@ -1059,16 +1059,17 @@ function handleImageUpload(event){
   const file = event.target.files[0];
   if(!file) return;
 
-  addMessage('user',`📸 上传图片进行AI分析：<strong>${file.name}</strong> (${(file.size/1024).toFixed(0)}KB)`);
-  showTyping();
-
   const reader = new FileReader();
   reader.onload = function(e){
-    const base64 = e.target.result.split(',')[1]; // 去掉 data:image/...;base64, 前缀
+    const dataUrl = e.target.result;
+    const base64 = dataUrl.split(',')[1]; // 去掉前缀
+    // 显示预览图 + 文件名
+    addMessage('user',`<div>📸 上传图片分析</div><div style="margin-top:6px;max-width:280px;border-radius:8px;overflow:hidden;border:2px solid var(--border)"><img src="${dataUrl}" style="width:100%;display:block" onerror="this.style.display='none'"></div><div style="margin-top:4px;font-size:10px;color:var(--text-dim)">${file.name} (${(file.size/1024).toFixed(0)}KB)</div>`, true);
+    showTyping();
     sendToBackend(base64, file.name);
   };
   reader.readAsDataURL(file);
-  event.target.value = ''; // 清空 input 以便重复上传同一文件
+  event.target.value = '';
 }
 
 // 发送到 Python 后端调用千问分析
@@ -1094,7 +1095,7 @@ async function sendToBackend(imageBase64, fileName){
 
     const data = await response.json();
     latestAnalysisResult = data;
-    renderAIResult(data, fileName);
+    renderAIResult(data, fileName, imageBase64);
     statusEl.textContent = '已连接 ✓';
     statusEl.style.color = 'var(--success)';
 
@@ -1117,7 +1118,7 @@ async function sendToBackend(imageBase64, fileName){
 }
 
 // 渲染千问AI分析结果
-function renderAIResult(data, fileName){
+function renderAIResult(data, fileName, imageBase64){
   removeTyping();
 
   const score = data.overall_score || Math.max(0, 100 - (data.yolo_no_helmet||data.no_helmet||0)*5 - (data.qwen_smoking||data.smoking||0)*15 - (data.qwen_channel_blocked||data.channel_blocked||0)*15 - (data.qwen_material_issue||data.material_issue||0)*10);
@@ -1143,7 +1144,12 @@ function renderAIResult(data, fileName){
     <span style="color:var(--danger)">📊 生成报告</span>
   </div>`;
 
-  html += `<div>📸 <strong>分析完成</strong>（${escapeHtml(fileName)}）</div>`;
+  // Preview image + result
+  html += `<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:8px">`;
+  if(imageBase64){
+    html += `<div style="max-width:160px;border-radius:8px;overflow:hidden;border:2px solid var(--border);flex-shrink:0"><img src="data:image/jpeg;base64,${imageBase64}" style="width:100%;display:block"></div>`;
+  }
+  html += `<div style="flex:1;min-width:200px"><div>📸 <strong>分析完成</strong>（${escapeHtml(fileName)}）</div>`;
 
   // 引擎标识
   html += `<div style="margin:4px 0;display:flex;gap:6px">`;
@@ -1151,7 +1157,7 @@ function renderAIResult(data, fileName){
     const isYolo = e.includes('YOLO');
     html += `<span style="font-size:9px;padding:2px 8px;border-radius:10px;background:${isYolo?'#10b98122':'#667eea22'};color:${isYolo?'var(--success)':'#667eea'}">${isYolo?'🎯':'🧠'} ${e}</span>`;
   });
-  html += `</div>`;
+  html += `</div></div></div>`;  // close engines div + inner text div + flex container
 
   // 综合评分卡
   html += `<div class="response-card ${score>=80?'success':score>=60?'warning':'danger'}" style="text-align:center">
