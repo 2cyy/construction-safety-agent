@@ -1319,7 +1319,7 @@ function showViolationImage(imageBase64, data){
       const w = ((bbox[2]-bbox[0]) / refW * 100).toFixed(1);
       const h = ((bbox[3]-bbox[1]) / refH * 100).toFixed(1);
       const hasHelmet = p.has_helmet;
-      const label = hasHelmet === false ? '未戴安全帽' : hasHelmet === true ? '安全帽 ✓' : '检测中';
+      const label = hasHelmet === false ? '⚠ 疑似未戴' : hasHelmet === true ? '安全帽 ✓' : '⚠ 疑似未戴';
       const cls = hasHelmet === false ? 'violation' : '';
       const labelCls = hasHelmet === false ? 'bad' : 'ok';
 

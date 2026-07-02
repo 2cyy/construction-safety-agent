@@ -254,7 +254,10 @@ def detect_persons(image) -> dict:
                 helmet_ok += 1
             elif has_helmet is False:
                 no_helmet += 1
-            # None → 不计数（unknown）
+            else:
+                # None → 安全优先原则：标记为疑似未戴
+                no_helmet += 1
+                has_helmet = False
 
             persons.append({
                 "id": i + 1,
@@ -850,18 +853,23 @@ def analyze_image_endpoint(request: ImageAnalysisRequest):
     qwen_people = qwen_result.get("total_people", 0)
     qwen_no_helmet = qwen_result.get("no_helmet", 0)
 
+    # ===== Data Fusion (必须在 RiskScorer 之前) =====
+    yolo_persons = yolo_result.get("total_persons", 0)
+    total_people = max(yolo_persons, qwen_people)
+    # 融合策略: 优先信任千问的场景级判断，YOLO的硬帽分类在小人头上不可靠
+    yolo_no_helmet_raw = yolo_result.get("no_helmet_detected", 0)
+    if qwen_no_helmet == 0 and yolo_no_helmet_raw > 0:
+        no_helmet = 0  # 信任千问
+    else:
+        no_helmet = max(yolo_no_helmet_raw, qwen_no_helmet)
+
     all_events = yolo_events + rule_events
     risk = RiskScorer.calculate(all_events, rule_triggers,
                                 yolo_helmet_ok=yolo_result.get("helmet_ok", 0),
-                                yolo_no_helmet=yolo_result.get("no_helmet_detected", 0),
+                                yolo_no_helmet=no_helmet,
                                 qwen_smoking=qwen_smoking,
                                 qwen_blocked=qwen_blocked,
                                 qwen_material=qwen_material)
-
-    # ===== Data Fusion =====
-    yolo_persons = yolo_result.get("total_persons", 0)
-    total_people = max(yolo_persons, qwen_people)
-    no_helmet = max(yolo_result.get("no_helmet_detected", 0), qwen_no_helmet)
 
     return DetectionResult(
         success=len(engines_used) > 0,
