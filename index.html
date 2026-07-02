@@ -1303,31 +1303,38 @@ function showViolationImage(imageBase64, data){
   if(data.qwen_material_issue > 0) violations.push(`📦 材料违规`);
   summary.innerHTML = violations.join(' | ') || '违规详情';
 
-  // Draw simulated violation boxes on the image
+  // Draw REAL YOLO detection boxes using actual image dimensions
   setTimeout(() => {
-    const boxes = [];
-    // Helmet violation boxes (simulated positions)
-    if(data.no_helmet > 0){
-      for(let i=0; i<Math.min(data.no_helmet,3); i++){
-        boxes.push({x:20+i*25, y:15+i*5, w:14, h:20, label:'未戴安全帽', color:'#ef4444'});
-      }
-    }
-    // Smoking box
+    const persons = data.persons || [];
+    // Get actual image dimensions from the loaded img element
+    const refW = img.naturalWidth || img.width || 1280;
+    const refH = img.naturalHeight || img.height || 1707;
+
+    let boxesHTML = '';
+    persons.forEach(p => {
+      const bbox = p.bbox || [0,0,0,0];
+      // Convert pixel coords to %
+      const left = (bbox[0] / refW * 100).toFixed(1);
+      const top = (bbox[1] / refH * 100).toFixed(1);
+      const w = ((bbox[2]-bbox[0]) / refW * 100).toFixed(1);
+      const h = ((bbox[3]-bbox[1]) / refH * 100).toFixed(1);
+      const hasHelmet = p.has_helmet;
+      const label = hasHelmet === false ? '未戴安全帽' : hasHelmet === true ? '安全帽 ✓' : '检测中';
+      const cls = hasHelmet === false ? 'violation' : '';
+      const labelCls = hasHelmet === false ? 'bad' : 'ok';
+
+      boxesHTML += `<div class="detection-box ${cls}" style="left:${left}%;top:${top}%;width:${w}%;height:${h}%">
+        <div class="detection-box-label ${labelCls}">${label} #${p.id||''}</div>
+      </div>`;
+    });
+
+    // Qwen smoking indicator
     if(data.qwen_smoking > 0){
-      boxes.push({x:55, y:20, w:15, h:22, label:'疑似吸烟', color:'#ff6600'});
+      boxesHTML += `<div style="position:absolute;top:5px;right:5px;background:#ef4444cc;color:#fff;padding:4px 8px;border-radius:4px;font-size:10px;font-weight:700">🚬 千问检测到吸烟</div>`;
     }
-    // Channel blocked
-    if(data.qwen_channel_blocked > 0){
-      boxes.push({x:85, y:10, w:12, h:80, label:'通道堵塞', color:'#f59e0b'});
-    }
-    overlay.innerHTML = boxes.map(b =>
-      `<div class="detection-box violation" style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%">
-        <div class="detection-box-label bad">${b.label}</div>
-      </div>`
-    ).join('');
-    // Scroll violation card into view
+    overlay.innerHTML = boxesHTML;
     card.scrollIntoView({behavior:'smooth',block:'center'});
-  }, 200);
+  }, 300);
 }
 
 // ==================== V2 事件查询 & 风险报告 ====================
