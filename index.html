@@ -705,9 +705,23 @@ function evidenceImage(imgSrc, boxes, caption){
   return h;
 }
 
-function openEvidenceViewer(idx){
-  const img = _evidenceImages[idx];
-  if(!img) return;
+function openEvidenceViewer(idx, base64Data, analysisData){
+  // Support both evidence images and uploaded violation images
+  let src, caption;
+  if(idx >= 0 && _evidenceImages[idx]){
+    src = _evidenceImages[idx].src;
+    caption = _evidenceImages[idx].caption;
+  } else if(base64Data){
+    src = 'data:image/jpeg;base64,' + base64Data;
+    const v = [];
+    if(analysisData){
+      if(analysisData.no_helmet>0) v.push(`未戴安全帽 ${analysisData.no_helmet}人`);
+      if(analysisData.qwen_smoking>0) v.push(`疑似吸烟 ${analysisData.qwen_smoking}处`);
+      if(analysisData.qwen_channel_blocked>0) v.push(`通道堵塞`);
+      if(analysisData.qwen_material_issue>0) v.push(`材料违规`);
+    }
+    caption = v.length>0 ? '违规检测结果: '+v.join(' | ') : '上传图片分析结果';
+  } else return;
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:#000000ee;z-index:9999;overflow:auto;display:flex;align-items:center;justify-content:center';
   overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
@@ -1425,6 +1439,11 @@ function showViolationImage(imageBase64, data){
 
   card.style.display = 'block';
   img.src = 'data:image/jpeg;base64,' + imageBase64;
+  img.style.cursor = 'zoom-in';
+  img.title = '点击放大查看';
+  img.onclick = function(){
+    openEvidenceViewer(-1, imageBase64, data);
+  };
   timeEl.textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
   // Build violation summary
