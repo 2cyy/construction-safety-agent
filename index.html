@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>腾讯广州总部 · 施工安全管理 AI 智能体</title>
+<title>腾讯广州总部 · AI 施工安全管理平台</title>
 <style>
 /* ===================== RESET & BASE ===================== */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -258,8 +258,8 @@ main{flex:1;display:flex;overflow:hidden}
   <div class="header-left">
     <div class="logo">🏗️</div>
     <div>
-      <div class="header-title">腾讯广州总部 · 施工安全管理 AI 智能体</div>
-      <div class="header-subtitle">整栋硬装修工程 | 模拟32路摄像头接入 | 基于公开工地数据集与本地样例图片演示</div>
+      <div class="header-title">腾讯广州总部 · AI 施工安全管理平台</div>
+      <div class="header-subtitle">视觉检测 + 策略引擎 + 风险评估 + 智能体交互 | 模拟32路摄像头接入 | 公开数据集演示</div>
     </div>
   </div>
   <div class="header-right">
@@ -272,7 +272,7 @@ main{flex:1;display:flex;overflow:hidden}
 <main>
   <!-- LEFT SIDEBAR -->
   <aside class="left-sidebar">
-    <div class="section-title">🏗️ Agent 能力模块</div>
+    <div class="section-title">🏗️ 平台技术栈</div>
 
     <!-- Module 1: AI Perception -->
     <div style="background:var(--bg-card);border:1px solid var(--accent);border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
@@ -304,7 +304,7 @@ main{flex:1;display:flex;overflow:hidden}
 
     <!-- Module 4: Agent Execution -->
     <div style="background:var(--bg-card);border:1px solid var(--danger);border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
-      <div style="color:var(--danger);font-weight:700;margin-bottom:3px">⚡ Agent 执行层</div>
+      <div style="color:var(--danger);font-weight:700;margin-bottom:3px">⚡ Agent 执行层（智能体模块）</div>
       <span style="color:var(--success)">✓</span> 自动告警推送<br>
       <span style="color:var(--success)">✓</span> 整改工单生成<br>
       <span style="color:var(--success)">✓</span> 人工复核队列<br>
@@ -381,8 +381,8 @@ main{flex:1;display:flex;overflow:hidden}
     <div class="chat-header">
       <div class="chat-avatar">🤖</div>
       <div>
-        <div class="chat-title">安全智能体 · SafetyGuard Agent <span class="data-source-tag">Qwen-VL 视觉驱动</span></div>
-        <div class="chat-desc">我可基于千问视觉大模型分析真实工地图片，也支持文字查询</div>
+        <div class="chat-title">AI 安全助手 <span class="data-source-tag">视觉+LLM+策略引擎</span></div>
+        <div class="chat-desc">上传工地图片自动分析，或文字查询安全状况 | Agent 负责理解意图、调用工具、生成报告</div>
       </div>
     </div>
     <div class="quick-questions" id="quickQuestions">
@@ -1335,16 +1335,17 @@ function init(){
   setInterval(scheduleDailyReport, 60000); // 每分钟检查一次
 
   setTimeout(()=>{
-    addMessage('agent',`<div>👋 你好，安全总监！我是<strong>广州腾讯总部大楼施工安全管理 AI Agent</strong>。</div>
+    addMessage('agent',`<div>👋 你好，安全总监！欢迎使用<strong>广州腾讯总部大楼 AI 施工安全管理平台</strong>。</div>
     <div style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.8">
-    🎯 YOLO 负责感知 | 🧠 Qwen 负责理解<br>
-    ⚡ Policy 负责判断 | 🧭 Planner 负责规划<br>
-    🧠 Memory 负责长期状态 | 🔍 Reflection 负责纠错<br><br>
-    我不只检测违规，我会：<br>
+    平台核心能力：<br>
+    🎯 <strong>AI 视觉检测</strong> — YOLO + 安全帽分类器 + 姿态估计 + SAM 分割<br>
+    ⚡ <strong>策略引擎</strong> — 4 条安全 Policy，规则可配置<br>
+    📊 <strong>风险评估</strong> — Zone 加权评分，四级告警<br>
+    🤖 <strong>智能体 (Agent)</strong> — 理解意图、调用工具、生成报告<br><br>
+    平台会自动：<br>
     ✓ 发现违规 → 生成整改工单<br>
     ✓ 通知安全员 → 加入日报<br>
-    ✓ 持续追踪 → 未整改自动升级<br>
-    ✓ 分析趋势 → 预测高风险区域</div>
+    ✓ 持续追踪 → 未整改自动升级</div>
     <div style="margin-top:8px">当前系统状态：</div>
     <div class="response-card success"><div class="card-title success">✅ 系统就绪 — 基于真实工地数据集</div>
       <div class="card-row"><span class="label">📹 摄像头</span><span class="value">32路在线</span></div>
