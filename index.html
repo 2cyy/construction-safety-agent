@@ -461,7 +461,7 @@ main{flex:1;display:flex;overflow:hidden}
       </div>
       <div class="live-feed-footer">
         <span id="violationSummary"></span>
-        <span style="color:var(--danger);font-size:10px">⚠ 实时违规截图</span>
+        <button id="violationZoomBtn" onclick="event.stopPropagation(); var c=document.getElementById('violationCard'); if(c._zoomBase64) openEvidenceViewer(-1,c._zoomBase64,c._zoomData);" style="background:var(--accent);color:#000;border:none;padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer;font-weight:700">🔍 放大查看</button>
       </div>
     </div>
 
