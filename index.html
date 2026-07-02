@@ -1438,12 +1438,15 @@ function showViolationImage(imageBase64, data){
   const timeEl = document.getElementById('violationTime');
 
   card.style.display = 'block';
+  card.style.cursor = 'pointer';
   img.src = 'data:image/jpeg;base64,' + imageBase64;
-  img.style.cursor = 'zoom-in';
-  img.title = '点击放大查看';
-  img.onclick = function(){
+  img.style.pointerEvents = 'none';  // let card handle clicks
+  // Click card to zoom
+  card.querySelector('.live-feed-body').onclick = function(){
     openEvidenceViewer(-1, imageBase64, data);
   };
+  card.querySelector('.live-feed-body').style.cursor = 'zoom-in';
+  card.querySelector('.live-feed-body').title = '点击放大查看违规图片';
   timeEl.textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
   // Build violation summary
