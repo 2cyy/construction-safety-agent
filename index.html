@@ -288,7 +288,7 @@ main{flex:1;display:flex;overflow:hidden}
       <span style="color:var(--success)">✓</span> RTSP | <span style="color:var(--success)">✓</span> ONVIF | <span style="color:var(--success)">✓</span> GB28181<br>
       <span style="color:var(--success)">✓</span> 海康/大华 SDK<br>
       在线: <span style="color:var(--success)" id="camOnline">32</span> / 离线: <span style="color:var(--danger)" id="camOffline">0</span><br>
-      FPS: 25 | 分辨率: 1080P
+      <span style="font-size:9px;color:var(--warning)">⚠ 当前为模拟摄像头接入，真实落地需接 RTSP/ONVIF 视频流服务</span>
     </div>
 
     <!-- Module 1: AI Perception -->
@@ -1278,7 +1278,7 @@ async function sendToBackend(imageBase64, fileName){
     </div>
     <div style="margin-top:8px;font-size:11px;color:var(--text-dim)">
       💡 请确认：<br>
-      1. Python后端已启动：<code>uvicorn app:app --reload --port 9000</code><br>
+      1. Python后端已启动：<code>uvicorn app:app --reload --port 9100</code><br>
       2. API Key 已正确配置在 app.py 中<br>
       3. 后端地址：<a href="${BACKEND_URL}/docs" target="_blank" style="color:var(--accent)">${BACKEND_URL}/docs</a>
     </div>`, true);
@@ -1517,10 +1517,9 @@ async function loadTickets(){
         </div>
         <div style="color:var(--text-dim);margin-top:2px">${t.event_type} | ${t.zone||'-'} | ${t.assignee||'-'}</div>`;
       if(t.status === 'open'){
-        html += `<div style="margin-top:4px;display:flex;gap:4px">
-          <button onclick="resolveTicket('${t.ticket_no}')" style="flex:1;padding:2px;background:var(--warning);color:#000;border:none;border-radius:3px;font-size:9px;cursor:pointer">✓ 处理</button>
-          <button onclick="closeTicket('${t.ticket_no}')" style="flex:1;padding:2px;background:var(--success);color:#000;border:none;border-radius:3px;font-size:9px;cursor:pointer">🔒 关闭</button>
-        </div>`;
+        html += `<div style="margin-top:4px"><button onclick="resolveTicket('${t.ticket_no}')" style="width:100%;padding:3px;background:var(--warning);color:#000;border:none;border-radius:3px;font-size:9px;cursor:pointer;font-weight:700">✓ 标记已处理</button></div>`;
+      } else if(t.status === 'resolved'){
+        html += `<div style="margin-top:4px"><button onclick="closeTicket('${t.ticket_no}')" style="width:100%;padding:3px;background:var(--success);color:#000;border:none;border-radius:3px;font-size:9px;cursor:pointer;font-weight:700">🔒 复检关闭</button></div>`;
       }
       html += `</div>`;
     });
@@ -1662,7 +1661,7 @@ async function checkBackendHealth(){
   } catch(e) {
     document.getElementById('backendStatusText').textContent = '未连接';
     document.getElementById('backendStatusText').style.color = 'var(--text-dim)';
-    document.getElementById('apiKeyStatus').textContent = '请启动后端: uvicorn app:app --reload --port 9000';
+    document.getElementById('apiKeyStatus').textContent = '请启动后端: uvicorn app:app --reload --port 9100';
   }
 }
 
