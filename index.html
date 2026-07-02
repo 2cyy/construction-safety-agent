@@ -259,7 +259,7 @@ main{flex:1;display:flex;overflow:hidden}
     <div class="logo">🏗️</div>
     <div>
       <div class="header-title">腾讯广州总部 · 施工安全管理 AI 智能体</div>
-      <div class="header-subtitle">整栋硬装修工程 | 7×24 实时监控 | 基于真实工地数据集</div>
+      <div class="header-subtitle">整栋硬装修工程 | 模拟32路摄像头接入 | 基于公开工地数据集与本地样例图片演示</div>
     </div>
   </div>
   <div class="header-right">
@@ -272,7 +272,7 @@ main{flex:1;display:flex;overflow:hidden}
 <main>
   <!-- LEFT SIDEBAR -->
   <aside class="left-sidebar">
-    <div class="section-title">📊 今日概览（基于真实数据模拟）</div>
+    <div class="section-title">📊 今日概览（演示数据）</div>
     <div class="stat-card active" onclick="askQuick('今天整体安全情况怎么样？')">
       <div class="stat-row"><span class="stat-label">🪖 安全帽违规</span><span class="stat-value danger" id="statHelmet">12</span></div>
       <div class="stat-sub">较昨日 ↑3 次 | 参考 GDUT-HWD 基准</div>
@@ -290,20 +290,41 @@ main{flex:1;display:flex;overflow:hidden}
       <div class="stat-sub">4/6 区域达标 · 待检查</div>
     </div>
 
-    <div class="section-title">🏢 楼层选择（真实工地布局）</div>
+    <div class="section-title">⚙️ Agent 决策链路</div>
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.8">
+      📸 图片/视频<br>
+      <span style="color:var(--accent)">↓</span><br>
+      🎯 YOLO 感知层<br>
+      <span style="color:var(--accent)">↓</span><br>
+      📋 事件生成层<br>
+      <span style="color:var(--accent)">↓</span><br>
+      ⚡ 规则引擎层<br>
+      <span style="color:var(--accent)">↓</span><br>
+      📊 风险评分层<br>
+      <span style="color:var(--accent)">↓</span><br>
+      🧠 Qwen 解释层<br>
+      <span style="color:var(--accent)">↓</span><br>
+      📱 前端展示
+    </div>
+
+    <div class="section-title">🏢 楼层选择（演示布局）</div>
     <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px">A栋 (办公区装修) 1F-8F</div>
     <div class="floor-grid" id="floorGridA"></div>
     <div style="font-size:11px;color:var(--text-dim);margin:10px 0 6px">B栋 (功能区装修) 1F-4F</div>
     <div class="floor-grid" id="floorGridB"></div>
 
-    <div class="section-title">📷 真实数据来源</div>
+    <div class="section-title">📷 数据与模型说明</div>
     <div style="font-size:10px;color:var(--text-dim);line-height:1.6">
-      📸 现场照片：Pexels/Unsplash 真实工地摄影<br>
-      📊 数据集参考：GDUT-HWD (3,174张)<br>
-      📊 数据集参考：Construction-PPE (1,416张)<br>
-      📊 数据集参考：SH17 (8,099张)<br>
-      🎯 模型：YOLOv8s + DeepSORT<br>
-      🖥️ 边缘设备：Jetson Orin NX × 12台
+      📸 演示图片：Pexels/Unsplash 真实工地摄影<br>
+      📸 演示图片：GDUT-HWD 学术数据集样本<br>
+      📊 训练数据：GDUT-HWD 3,174张<br>
+      📊 训练数据：Construction-PPE 1,416张<br>
+      📊 训练数据：SH17 8,099张<br>
+      🎯 检测：YOLOv8n + 专用安全帽模型<br>
+      🧠 语义：Qwen-VL-max 视觉大模型<br>
+      ⚙️ 架构：事件驱动 Agent (感知→事件→规则→风险→解释)<br>
+      🖥️ 目标部署：Jetson Orin NX 边缘盒子<br>
+      <span style="color:var(--warning);font-size:9px">⚠️ 本页面为技术演示，非生产环境</span>
     </div>
   </aside>
 
@@ -383,7 +404,22 @@ main{flex:1;display:flex;overflow:hidden}
     <!-- ALERT FEED -->
     <div class="panel-section-title">🚨 实时告警推送</div>
     <div class="alert-feed" id="alertFeed">
-      <div style="color:var(--text-dim);font-size:11px;text-align:center;padding:20px">等待告警事件...</div>
+      <div class="alert-item critical">
+        <div class="alert-header"><span class="alert-type critical">🚬 吸烟违规</span><span class="alert-time">10:42</span></div>
+        <div class="alert-detail">B区疑似吸烟，需人工复核 | B-1F | W-0215</div>
+      </div>
+      <div class="alert-item warning">
+        <div class="alert-header"><span class="alert-type warning">🚪 通道堵塞</span><span class="alert-time">10:31</span></div>
+        <div class="alert-detail">B-1F 材料堆放阻塞通道，风险等级：高 | 持续12分钟</div>
+      </div>
+      <div class="alert-item warning">
+        <div class="alert-header"><span class="alert-type warning">🪖 安全帽违规</span><span class="alert-time">10:23</span></div>
+        <div class="alert-detail">A-3F 工人未戴安全帽，风险等级：中 | W-0152</div>
+      </div>
+      <div class="alert-item warning">
+        <div class="alert-header"><span class="alert-type warning">📦 材料违规</span><span class="alert-time">09:45</span></div>
+        <div class="alert-detail">B-2F 脚手架堆放区合规率仅73%，需整改</div>
+      </div>
     </div>
   </aside>
 </main>
