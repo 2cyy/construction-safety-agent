@@ -279,6 +279,127 @@ def detect_persons(image) -> dict:
 
 
 # ============================================================================
+# SECTION 3B: Smoking Behavior Detection (Cigarette + Hand-Mouth + Temporal)
+# ============================================================================
+# 三级抽烟检测管道: ① cigarette专用模型 ② hand-mouth距离 ③ 5帧时序确认
+_mp_pose = None
+_mp_hands = None
+_mp_drawing = None
+_smoking_frame_buffer: List[dict] = []  # 5帧滑动窗口
+SMOKING_FRAME_WINDOW = 5
+SMOKING_CONFIRM_THRESHOLD = 3  # 3/5帧阳性 = 确认
+
+def get_mediapipe():
+    """懒加载 MediaPipe"""
+    global _mp_pose, _mp_hands, _mp_drawing
+    if _mp_pose is None:
+        import mediapipe as mp
+        _mp_pose = mp.solutions.pose
+        _mp_hands = mp.solutions.hands
+        _mp_drawing = mp.solutions.drawing_utils
+    return _mp_pose, _mp_hands, _mp_drawing
+
+
+def detect_smoking_behavior(image, persons: List[dict]) -> dict:
+    """
+    三级抽烟检测管道:
+    ① cigarette专用模型检测烟头 (hardhat_model也可检测小目标)
+    ② MediaPipe hand-mouth距离特征
+    ③ 5帧时序窗口 (3/5阳性 = 确认吸烟)
+    """
+    img_array = np.array(image)
+    h, w = img_array.shape[:2]
+    results = {"smoking_detected": 0, "suspicious_persons": [], "hand_mouth_suspicious": [], "confidence": 0.0}
+
+    # ===== ① Cigarette检测：用手部区域放大 + hardhat_model 检测小目标 =====
+    for p in persons:
+        x1, y1, x2, y2 = p.get("bbox", [0, 0, 0, 0])
+        # 手部区域 (人体中部偏上，约40%-65%高度)
+        hand_y1 = y1 + int((y2 - y1) * 0.40)
+        hand_y2 = y1 + int((y2 - y1) * 0.65)
+        hand_region = img_array[hand_y1:hand_y2, x1:x2]
+
+        cigarette_found = False
+        if hand_region.size > 300 and hardhat_model is not None:
+            try:
+                # 放大手部 2×
+                from PIL import Image as PILImage
+                hand_pil = PILImage.fromarray(hand_region).resize(
+                    ((x2-x1)*2, (hand_y2-hand_y1)*2), PILImage.BILINEAR)
+                hand_arr = np.array(hand_pil)
+                hresults = hardhat_model(hand_arr, conf=0.15, verbose=False)
+                if hresults and len(hresults) > 0 and hresults[0].boxes is not None:
+                    # 检测到任何小目标在手部区域 → 标记可疑
+                    for j in range(len(hresults[0].boxes)):
+                        cls_id = int(hresults[0].boxes.cls[j])
+                        conf = float(hresults[0].boxes.conf[j])
+                        if conf > 0.2:  # 低阈值，捕捉小目标
+                            cigarette_found = True
+                            results["confidence"] = max(results["confidence"], conf)
+                            break
+            except Exception:
+                pass
+
+        if cigarette_found:
+            results["suspicious_persons"].append(p.get("id", -1))
+
+    # ===== ② Hand-Mouth 距离特征 (MediaPipe Pose) =====
+    try:
+        pose_mp, hands_mp, _ = get_mediapipe()
+        with pose_mp.Pose(static_image_mode=True, min_detection_confidence=0.5) as pose:
+            pose_results = pose.process(img_array)
+            if pose_results.pose_landmarks:
+                landmarks = pose_results.pose_landmarks.landmark
+                # 嘴部: landmarks 9,10 (上下唇)
+                mouth_x = (landmarks[9].x + landmarks[10].x) / 2 * w
+                mouth_y = (landmarks[9].y + landmarks[10].y) / 2 * h
+                # 手腕: landmarks 15,16 (左右手腕)
+                for wrist_idx in [15, 16]:
+                    wrist_x = landmarks[wrist_idx].x * w
+                    wrist_y = landmarks[wrist_idx].y * h
+                    distance = np.sqrt((wrist_x - mouth_x)**2 + (wrist_y - mouth_y)**2)
+                    # 阈值: 手到嘴距离 < 头部尺寸的0.6倍
+                    head_size = abs(landmarks[7].x - landmarks[8].x) * w * 0.8  # 耳朵距离估算头宽
+                    threshold = head_size * 0.6
+                    if distance < max(threshold, 30):  # 至少30px
+                        results["hand_mouth_suspicious"].append({
+                            "wrist": "left" if wrist_idx == 15 else "right",
+                            "distance_px": round(distance, 1),
+                            "threshold_px": round(threshold, 1)
+                        })
+    except Exception:
+        pass  # MediaPipe 可能不可用
+
+    # ===== ③ 5帧时序确认 =====
+    frame_result = {
+        "cigarette": len(results["suspicious_persons"]) > 0,
+        "hand_mouth": len(results["hand_mouth_suspicious"]) > 0,
+        "timestamp": time.time()
+    }
+    _smoking_frame_buffer.append(frame_result)
+    if len(_smoking_frame_buffer) > SMOKING_FRAME_WINDOW:
+        _smoking_frame_buffer.pop(0)
+
+    # 3/5帧阳性 = 确认
+    if len(_smoking_frame_buffer) >= SMOKING_CONFIRM_THRESHOLD:
+        cigarette_pos = sum(1 for f in _smoking_frame_buffer if f["cigarette"])
+        hand_mouth_pos = sum(1 for f in _smoking_frame_buffer if f["hand_mouth"])
+        both_pos = sum(1 for f in _smoking_frame_buffer if f["cigarette"] and f["hand_mouth"])
+
+        if both_pos >= SMOKING_CONFIRM_THRESHOLD:
+            results["smoking_detected"] = 1  # 确认吸烟
+            results["confidence"] = both_pos / SMOKING_FRAME_WINDOW
+        elif cigarette_pos >= SMOKING_CONFIRM_THRESHOLD:
+            results["smoking_detected"] = -1  # 疑似 (只有烟头，无手口动作)
+            results["confidence"] = cigarette_pos / SMOKING_FRAME_WINDOW
+        elif hand_mouth_pos >= SMOKING_CONFIRM_THRESHOLD:
+            results["smoking_detected"] = -1  # 疑似 (只有动作，未检测到烟头)
+            results["confidence"] = hand_mouth_pos / SMOKING_FRAME_WINDOW
+
+    return results
+
+
+# ============================================================================
 # SECTION 4: Event Generator (Perception → Structured Events)
 # ============================================================================
 
@@ -568,6 +689,11 @@ class DetectionResult(BaseModel):
     rule_triggers: List[str] = []
     tracked_persons: int = 0
     helmet_ok: int = 0
+    smoking_detected: int = 0
+    smoking_confidence: float = 0.0
+    smoking_method: str = ""
+    cigarette_suspicious: int = 0
+    hand_mouth_suspicious: int = 0
     recommendations: List[str] = []
 
 
@@ -652,10 +778,38 @@ def analyze_image_endpoint(request: ImageAnalysisRequest):
     except Exception as e:
         errors.append(f"Perception layer: {str(e)}")
 
+    # ===== Layer 1B: Smoking Behavior Detection =====
+    smoking_result = {}
+    try:
+        smoking_result = detect_smoking_behavior(image, persons)
+        if smoking_result.get("smoking_detected", 0) == 1:
+            engines_used.append("SmokingDetector(3-stage)")
+        elif smoking_result.get("smoking_detected", 0) == -1:
+            engines_used.append("SmokingDetector(suspicious)")
+    except Exception as e:
+        errors.append(f"SmokingDetector: {str(e)}")
+
     # ===== Layer 2: Event Generation =====
     zone = request.zone or "unknown"
     persons = yolo_result.get("persons", [])
     yolo_events = generate_events_from_yolo(persons, zone)
+    # Inject smoking events
+    if smoking_result.get("smoking_detected", 0) != 0:
+        smoking_event = SafetyEvent(
+            event_id=str(uuid.uuid4())[:8],
+            event_type="smoking",
+            confidence=smoking_result.get("confidence", 0.5),
+            zone=zone,
+            timestamp=datetime.now().isoformat(),
+            severity=AlertGrade.EMERGENCY if smoking_result.get("smoking_detected")==1 else AlertGrade.WARNING,
+            source="smoking_detector",
+            metadata={
+                "hand_mouth_suspicious": len(smoking_result.get("hand_mouth_suspicious", [])),
+                "cigarette_suspicious": len(smoking_result.get("suspicious_persons", [])),
+                "method": "cigarette_model+hand_mouth+temporal_5frame"
+            }
+        )
+        yolo_events.append(smoking_event)
     buffer = get_memory_buffer()
 
     # ===== Layer 3: Rule Engine =====
@@ -688,7 +842,9 @@ def analyze_image_endpoint(request: ImageAnalysisRequest):
         buffer.add_event(evt, cooldown=120.0)
 
     # ===== Layer 5: Risk Scoring =====
-    qwen_smoking = qwen_result.get("smoking", 0)
+    # 融合 Qwen + Smoking Detector 结果
+    smoke_detector_result = 1 if smoking_result.get("smoking_detected", 0) == 1 else 0
+    qwen_smoking = max(qwen_result.get("smoking", 0), smoke_detector_result)
     qwen_blocked = qwen_result.get("channel_blocked", 0)
     qwen_material = qwen_result.get("material_issue", 0)
     qwen_people = qwen_result.get("total_people", 0)
@@ -732,6 +888,11 @@ def analyze_image_endpoint(request: ImageAnalysisRequest):
         rule_triggers=rule_triggers,
         tracked_persons=len(buffer.tracks),
         helmet_ok=yolo_result.get("helmet_ok", 0),
+        smoking_detected=smoking_result.get("smoking_detected", 0),
+        smoking_confidence=smoking_result.get("confidence", 0.0),
+        smoking_method="cigarette_model+hand_mouth+temporal_5frame",
+        cigarette_suspicious=len(smoking_result.get("suspicious_persons", [])),
+        hand_mouth_suspicious=len(smoking_result.get("hand_mouth_suspicious", [])),
         recommendations=risk.recommendations,
     )
 
