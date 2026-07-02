@@ -1258,10 +1258,8 @@ async function sendToBackend(imageBase64, fileName){
     const data = await response.json();
     latestAnalysisResult = data;
     renderAIResult(data, fileName, imageBase64);
-    // 如果有违规，在右侧展示违规图片
-    if(data.no_helmet>0 || data.qwen_smoking>0 || data.qwen_channel_blocked>0 || data.qwen_material_issue>0){
-      showViolationImage(imageBase64, data);
-    }
+    // 始终展示上传图片（不管有没有违规）
+    showViolationImage(imageBase64, data);
     statusEl.textContent = '已连接 ✓';
     statusEl.style.color = 'var(--success)';
 
@@ -1451,13 +1449,18 @@ function showViolationImage(imageBase64, data){
   card.title = '点击任意位置放大查看违规图片';
   timeEl.textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 
-  // Build violation summary
+  // Update card title
+  const cardTitle = card.querySelector('.live-feed-header span:first-child');
+  const hasViolation = data.no_helmet>0 || data.qwen_smoking>0 || data.qwen_channel_blocked>0 || data.qwen_material_issue>0;
+  if(cardTitle) cardTitle.innerHTML = hasViolation ? '🚨 违规现场 <span class="live-dot" style="display:inline-block;margin-left:4px"></span>' : '📸 分析图片';
+
+  // Build summary
   const violations = [];
   if(data.no_helmet > 0) violations.push(`🪖 未戴安全帽 ${data.no_helmet}人`);
   if(data.qwen_smoking > 0) violations.push(`🚬 吸烟 ${data.qwen_smoking}处`);
   if(data.qwen_channel_blocked > 0) violations.push(`🚪 通道堵塞`);
   if(data.qwen_material_issue > 0) violations.push(`📦 材料违规`);
-  summary.innerHTML = violations.join(' | ') || '违规详情';
+  summary.innerHTML = violations.join(' | ') || '点击 🔍放大查看 按钮查看完整图片';
 
   // Draw REAL YOLO detection boxes using actual image dimensions
   setTimeout(() => {
