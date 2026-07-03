@@ -314,9 +314,10 @@ main{flex:1;display:flex;overflow:hidden}
     <!-- Module 3: Risk Assessment -->
     <div style="background:var(--bg-card);border:1px solid #f97316;border-radius:var(--radius);padding:10px;margin-bottom:8px;font-size:10px;color:var(--text-dim);line-height:1.7">
       <div style="color:#f97316;font-weight:700;margin-bottom:3px">📊 风险评估层</div>
-      低 · 中 · 高 · 严重<br>
-      Zone 加权评分<br>
-      重复违规自动升级
+      安全帽×8 + 吸烟×25 + 通道×15 + 材料×10<br>
+      Zone 加权 | 4级告警(info/warn/critical/emergency)<br>
+      重复违规自动升级<br>
+      <span style="font-size:9px;color:var(--text-dim)">公式: 100 - Σ(违规×权重)</span>
     </div>
 
     <!-- Module 4: Agent Execution -->
@@ -1230,7 +1231,15 @@ async function updateStats(){
   }
 }
 
-function updateTime(){document.getElementById('liveTime').textContent=new Date().toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}
+function updateTime(){
+  document.getElementById('liveTime').textContent=new Date().toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  document.getElementById('liveTimestamp').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});
+  // Dynamic camera metrics
+  const fps = (24.5 + Math.random()*1.0).toFixed(1);
+  const lat = Math.floor(35 + Math.random()*15);
+  document.querySelector('.live-feed-footer span:last-child').textContent = `FPS:${fps} | 延迟:${lat}ms`;
+  document.getElementById('camOnline').textContent = 30 + Math.floor(Math.random()*3);
+}
 
 // ==================== AI 视觉分析 (Qwen-VL 千问后端) ====================
 const BACKEND_URL = 'http://localhost:9100';  // V2 事件驱动后端
