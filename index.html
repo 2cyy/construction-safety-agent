@@ -263,6 +263,7 @@ main{flex:1;display:flex;overflow:hidden}
     </div>
   </div>
   <div class="header-right">
+    <button onclick="showAdminPanel()" style="background:#667eea;color:#fff;border:none;padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;margin-right:6px">⚙ 管理后台</button>
     <button onclick="showCameraModal()" style="background:var(--accent);color:#000;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-right:8px">＋ 接入摄像头</button>
     <span class="status-dot"></span>
     <span class="status-text">模拟32路在线</span>
@@ -287,7 +288,7 @@ main{flex:1;display:flex;overflow:hidden}
       <div style="color:#06b6d4;font-weight:700;margin-bottom:3px">📹 视频接入层 (Video Gateway)</div>
       <span style="color:var(--success)">✓</span> RTSP | ONVIF | GB28181 | 海康/大华<br>
       在线: <span style="color:var(--success)" id="camOnline">31</span> / <span style="color:var(--danger)" id="camOffline">1</span> / 总计: 32<br>
-      延迟: <span style="color:var(--success)">42ms</span> | FPS: <span style="color:var(--success)">24.8</span><br>
+      延迟: <span style="color:var(--success)">42ms</span> | FPS: <span style="color:var(--success)">24.8</span> | 码率: <span style="color:var(--success)" id="gatewayBitrate">4.2 Mbps</span><br>
       <span style="font-size:9px;color:var(--warning)">⚠ 模拟接入，真实落地需接RTSP/ONVIF视频流</span>
     </div>
 
@@ -353,6 +354,25 @@ main{flex:1;display:flex;overflow:hidden}
     <div class="floor-grid" id="floorGridA"></div>
     <div style="font-size:11px;color:var(--text-dim);margin:10px 0 6px">B栋 (功能区装修) 1F-4F</div>
     <div class="floor-grid" id="floorGridB"></div>
+
+    <div class="section-title">🤖 Agent 自动巡检工作流</div>
+    <div style="background:var(--bg-card);border:1px solid #667eea;border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.8">
+      🕐 每日 17:00 自动触发<br>
+      <span style="color:var(--accent)">↓</span><br>
+      ① 32路摄像头自动巡检<br>
+      <span style="color:var(--accent)">↓</span><br>
+      ② AI分析 → 生成违规事件<br>
+      <span style="color:var(--accent)">↓</span><br>
+      ③ 自动生成整改工单<br>
+      <span style="color:var(--accent)">↓</span><br>
+      ④ 推送负责人+截止时间<br>
+      <span style="color:var(--accent)">↓</span><br>
+      ⑤ 复检验证 → 关闭工单<br>
+      <span style="color:var(--accent)">↓</span><br>
+      ⑥ 生成安全日报<br>
+      <span style="color:var(--accent)">↓</span><br>
+      ⑦ 发送企业微信/邮件
+    </div>
 
     <div class="section-title">📐 Policy 规则配置</div>
     <div style="background:var(--bg-card);border:1px solid var(--warning);border-radius:var(--radius);padding:10px;font-size:10px;color:var(--text-dim);line-height:1.7">
@@ -1237,8 +1257,11 @@ function updateTime(){
   // Dynamic camera metrics
   const fps = (24.5 + Math.random()*1.0).toFixed(1);
   const lat = Math.floor(35 + Math.random()*15);
-  document.querySelector('.live-feed-footer span:last-child').textContent = `FPS:${fps} | 延迟:${lat}ms`;
+  const gpu = Math.floor(55 + Math.random()*15);
+  const bps = (3.8 + Math.random()*0.8).toFixed(1);
+  document.querySelector('.live-feed-footer span:last-child').textContent = `FPS:${fps} | 延迟:${lat}ms | GPU:${gpu}%`;
   document.getElementById('camOnline').textContent = 30 + Math.floor(Math.random()*3);
+  document.getElementById('gatewayBitrate').textContent = bps + ' Mbps';
 }
 
 // ==================== AI 视觉分析 (Qwen-VL 千问后端) ====================
@@ -1587,6 +1610,64 @@ function showCameraModal(){
 }
 function closeCameraModal(){
   document.getElementById('cameraModal').style.display = 'none';
+}
+
+// ==================== 管理后台面板 ====================
+function showAdminPanel(){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#000000cc;z-index:999;display:flex;align-items:center;justify-content:center';
+  overlay.onclick = function(e){ if(e.target===overlay) overlay.remove(); };
+
+  const panel = document.createElement('div');
+  panel.style.cssText = 'background:var(--bg-panel);border:1px solid var(--border);border-radius:12px;width:800px;max-height:85vh;overflow-y:auto;padding:24px';
+
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="color:var(--text-bright)">⚙ 管理后台</h2>
+      <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="background:var(--bg-card);border-radius:8px;padding:12px">
+        <div style="font-weight:700;color:var(--accent);margin-bottom:8px">📹 摄像头管理</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:2">
+          <div>总计: 32路 | 在线: <span style="color:var(--success)">31</span> | 离线: <span style="color:var(--danger)">1</span></div>
+          <div>A-1F: 6路 | A-2F: 8路 | A-3F: 12路</div>
+          <div>A-4F: 4路 | B-1F: 2路</div>
+          <div style="margin-top:4px;color:var(--text-dim);font-size:10px">协议: RTSP/ONVIF/GB28181</div>
+        </div>
+      </div>
+      <div style="background:var(--bg-card);border-radius:8px;padding:12px">
+        <div style="font-weight:700;color:var(--warning);margin-bottom:8px">🎫 工单概览</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:2">
+          <div>待处理: <span style="color:var(--danger)">49</span> | 处理中: <span style="color:var(--warning)">15</span></div>
+          <div>已处理: <span style="color:var(--info)">63</span> | 已关闭: <span style="color:var(--success)">85</span></div>
+          <div style="margin-top:4px;color:var(--text-dim);font-size:10px">闭环率: 73% | 平均处理时间: 2.3h</div>
+        </div>
+      </div>
+      <div style="background:var(--bg-card);border-radius:8px;padding:12px">
+        <div style="font-weight:700;color:#f97316;margin-bottom:8px">📊 风险趋势</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:2">
+          <div>今日评分: 76/100 (WARNING)</div>
+          <div>本周趋势: <span style="color:var(--success)">↑ 改善中</span></div>
+          <div>高风险区域: A-3F, B-1F</div>
+          <div style="margin-top:4px;color:var(--text-dim);font-size:10px">较上周违规率下降12%</div>
+        </div>
+      </div>
+      <div style="background:var(--bg-card);border-radius:8px;padding:12px">
+        <div style="font-weight:700;color:var(--success);margin-bottom:8px">📋 报告中心</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:2">
+          <div>📄 今日日报 - 已生成</div>
+          <div>📄 本周周报 - 待生成</div>
+          <div>📄 本月月报 - 待生成</div>
+          <div style="margin-top:4px">
+            <button onclick="askQuick('生成今天下班前的材料摆放报告')" style="background:var(--accent);color:#000;border:none;padding:4px 8px;border-radius:4px;font-size:10px;cursor:pointer">📋 生成日报</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
 }
 function addCamera(){
   const name = document.getElementById('camName').value || 'CAM_NEW';
